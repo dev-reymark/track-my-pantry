@@ -14,8 +14,18 @@ import {
 } from "@heroui/react";
 import { SearchIcon } from "lucide-react";
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
+import { GoTrash } from "react-icons/go";
 
 type PantryItem = {
   id: string;
@@ -24,6 +34,7 @@ type PantryItem = {
 };
 
 export default function MyPantry() {
+  const router = useRouter();
   const [items, setItems] = useState<PantryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -41,6 +52,20 @@ export default function MyPantry() {
 
     fetchItems();
   }, []);
+
+  const handleDelete = async (id: string) => {
+    try {
+      // Delete the item from Firestore
+      await deleteDoc(doc(db, "items", id));
+
+      // Update the local state by removing the deleted item
+      setItems((prevItems) => prevItems.filter((item) => item.id !== id));
+      toast.success("Item deleted!");
+      router.push("/mypantry");
+    } catch (error) {
+      console.error("Error deleting item: ", error);
+    }
+  };
 
   const filteredItems = items.filter((item) =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -80,11 +105,12 @@ export default function MyPantry() {
                   <TableCell>{item.quantity}</TableCell>
                   <TableCell>
                     <Button
-                      onPress={() => console.log("Delete")}
+                      onPress={() => handleDelete(item.id)}
                       color="danger"
-                      variant="flat"
+                      variant="light"
+                      isIconOnly
                     >
-                      Delete
+                      <GoTrash size={20} />
                     </Button>
                   </TableCell>
                 </TableRow>

@@ -16,6 +16,7 @@ import { SearchIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/context/AuthContext";
 
 // Define the Recipe type
 interface Recipe {
@@ -30,6 +31,8 @@ interface Recipe {
 }
 
 export default function Recipes() {
+  const { user } = useAuth();
+
   const [recipes, setRecipes] = useState<Recipe[]>([]); // Use the Recipe type here
   const [search, setSearch] = useState("");
   const [selectedPrepTimes, setSelectedPrepTimes] = useState<string[]>([]);
@@ -100,14 +103,16 @@ export default function Recipes() {
             onChange={(e) => setSearch(e.target.value)}
           />
 
-          <Button
-            as={Link}
-            href="/recipes/addrecipe"
-            color="primary"
-            className="mb-6"
-          >
-            Add Recipe
-          </Button>
+          {user?.role === "admin" && (
+            <Button
+              as={Link}
+              href="/recipes/addrecipe"
+              color="primary"
+              className="mb-6"
+            >
+              Add Recipe
+            </Button>
+          )}
 
           {/* FILTERS */}
           <div className="flex flex-col gap-4 mb-6">

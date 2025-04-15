@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { Button, Card, Checkbox, CheckboxGroup } from "@heroui/react";
+import Preloader from "@/components/Preloader";
+import toast from "react-hot-toast";
 
 type Category = {
   id: string;
@@ -60,6 +62,10 @@ export default function AddItems() {
   const getItemsByCategory = (categoryId: string) =>
     items.filter((item) => item.categoryId === categoryId);
 
+  const handleSubmit = () => {
+    toast.success("Items added!");
+  };
+
   return (
     <ProtectedRoute>
       <ApplicationLayout>
@@ -70,7 +76,7 @@ export default function AddItems() {
             </h1>
 
             {loading ? (
-              <p>Loading...</p>
+              <Preloader />
             ) : categories.length === 0 ? (
               <p>No categories found.</p>
             ) : (
@@ -100,8 +106,13 @@ export default function AddItems() {
                 );
               })
             )}
-
-            <Button color="primary">Submit</Button>
+            <Button
+              onPress={handleSubmit}
+              className="mt-4 max-w-xs"
+              color="primary"
+            >
+              Submit
+            </Button>
           </Card>
         </div>
       </ApplicationLayout>

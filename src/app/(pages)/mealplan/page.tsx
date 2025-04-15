@@ -143,7 +143,7 @@ export default function MealPlan() {
   return (
     <ProtectedRoute>
       <ApplicationLayout>
-        <div className="p-6">
+        <div className="p-1">
           <Table
             className="mt-4"
             aria-label="Weekly Meal Plan"
