@@ -5,7 +5,7 @@ import { Button, Input, Checkbox, Link, Form } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { setDoc, doc } from "firebase/firestore";
+import { setDoc, doc, getDocs, collection } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { FirebaseError } from "firebase/app";
@@ -43,11 +43,16 @@ export default function Signup() {
       );
       const user = userCredential.user;
 
+      // Check if there are any users in the "users" collection
+      const usersSnapshot = await getDocs(collection(db, "users"));
+      const isFirstUser = usersSnapshot.empty;
+
       // Save user data to Firestore
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         name,
         email,
+        role: isFirstUser ? "admin" : "user",
         createdAt: new Date(),
       });
 

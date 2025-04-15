@@ -16,6 +16,8 @@ import { CgClose } from "react-icons/cg";
 import { ApplicationLogo } from "../ApplicationLogo";
 import LogOut from "../auth/LogOut";
 import { usePathname } from "next/navigation";
+import { BiBasket } from "react-icons/bi";
+import { useAuth } from "@/context/AuthContext";
 
 interface ApplicationLayoutProps {
   children: React.ReactNode;
@@ -26,6 +28,8 @@ export default function ApplicationLayout({
   children,
   title,
 }: ApplicationLayoutProps) {
+  const { user } = useAuth();
+  // console.log('user', user);
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [openedFromMore, setOpenedFromMore] = useState(false);
@@ -86,7 +90,19 @@ export default function ApplicationLayout({
                 <Home size={18} />
                 Home
               </Link>
-
+              {user?.role === "admin" && (
+                <Link
+                  href="/pantry"
+                  className={`flex items-center gap-2 p-2 rounded ${
+                    isActive("/pantry")
+                      ? "bg-gray-200 text-black font-semibold"
+                      : "text-gray-800"
+                  }`}
+                >
+                  <BiBasket size={18} />
+                  Pantry
+                </Link>
+              )}
               {!openedFromMore && (
                 <>
                   <Link

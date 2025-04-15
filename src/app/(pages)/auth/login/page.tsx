@@ -9,7 +9,7 @@ import { auth, db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 
 export default function Login() {
   const [isVisible, setIsVisible] = React.useState(false);
@@ -47,20 +47,27 @@ export default function Login() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // Optional: Save user to Firestore if new
       const userDocRef = doc(db, "users", user.uid);
       const userSnap = await getDoc(userDocRef);
 
       if (!userSnap.exists()) {
+        // Check if this is the first user in the collection
+        const usersSnapshot = await getDocs(collection(db, "users"));
+        const isFirstUser = usersSnapshot.empty;
+
         await setDoc(userDocRef, {
           uid: user.uid,
           name: user.displayName,
           email: user.email,
+          role: isFirstUser ? "admin" : "user",
           createdAt: new Date(),
         });
+
+        toast.success(`Welcome, ${isFirstUser ? "Admin" : "User"}!`);
+      } else {
+        toast.success("Welcome back!");
       }
 
-      toast.success("Logged in with Google!");
       router.push("/home");
     } catch (error) {
       const err = error as FirebaseError;

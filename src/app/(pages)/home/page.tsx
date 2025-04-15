@@ -36,9 +36,9 @@ export default function Home() {
   return (
     <ProtectedRoute>
       <ApplicationLayout title="Home | Track My Pantry">
-        <div className="p-6">
+        <div>
           <div className="relative overflow-hidden">
-            <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
+            <div className="w-full mx-auto px-2 py-10">
               <div className="max-w-2xl text-center mx-auto mb-6">
                 <h1 className="block text-3xl font-bold text-gray-800 sm:text-4xl md:text-5xl dark:text-white">
                   Discover healthy recipes right{" "}
@@ -49,7 +49,12 @@ export default function Home() {
                   create grocery lists for ingredients you don&apos;t have!
                 </p>
 
-                <Button as={Link} href="/mypantry" className="mt-6" color="primary">
+                <Button
+                  as={Link}
+                  href="/mypantry"
+                  className="mt-6"
+                  color="primary"
+                >
                   What&apos;s in my Pantry?
                 </Button>
               </div>
@@ -71,7 +76,7 @@ export default function Home() {
                 <div className="border-t border-gray-200 my-6"></div>
               </div>
 
-              <div className="gap-2 grid grid-cols-2 sm:grid-cols-4">
+              <div className="gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {cards.map((card, index) => (
                   <Card
                     key={index}
