@@ -3,6 +3,7 @@
 import ApplicationLayout from "@/components/layout/ApplicationLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Button, Card, CardBody, CardFooter, Image, Link } from "@heroui/react";
+import { Slider } from "./component/slider";
 
 const cards = [
   {
@@ -39,7 +40,7 @@ export default function Home() {
         <div>
           <div className="relative overflow-hidden">
             <div className="w-full mx-auto px-2 py-10">
-              <div className="max-w-2xl text-center mx-auto mb-6">
+              <div className="w-full mx-auto text-center mb-6">
                 <h1 className="block text-3xl font-bold text-gray-800 sm:text-4xl md:text-5xl dark:text-white">
                   Discover healthy recipes right{" "}
                   <span className="text-blue-600">at home!</span>
@@ -59,13 +60,18 @@ export default function Home() {
                 </Button>
               </div>
 
-              <Image
-                className="mb-6"
-                src="https://images.pexels.com/photos/1640771/pexels-photo-1640771.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
-                alt=""
-              />
+              <div className="items-center justify-center flex">
+                <Image
+                  // className="mb-6"
+                  className="w-full h-full object-cover"
+                  src="https://images.pexels.com/photos/1640771/pexels-photo-1640771.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+                  alt=""
+                />
+              </div>
 
-              <div className="max-w-2xl text-center mx-auto py-6">
+              <Slider />
+
+              <div className="text-center mx-auto py-6">
                 <h1 className="block text-3xl font-bold text-gray-800">
                   What’s new
                 </h1>
@@ -76,7 +82,7 @@ export default function Home() {
                 <div className="border-t border-gray-200 my-6"></div>
               </div>
 
-              <div className="gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {cards.map((card, index) => (
                   <Card
                     key={index}

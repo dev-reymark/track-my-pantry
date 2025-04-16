@@ -12,12 +12,6 @@ import {
   ModalHeader,
   Select,
   SelectItem,
-  Table,
-  TableBody,
-  TableCell,
-  TableColumn,
-  TableHeader,
-  TableRow,
   useDisclosure,
 } from "@heroui/react";
 import { useEffect, useState } from "react";
@@ -25,8 +19,11 @@ import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getAuth } from "firebase/auth";
 import toast from "react-hot-toast";
+import { Calendar, dateFnsLocalizer, Event } from "react-big-calendar";
+import * as dateFns from "date-fns";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import { enUS } from "date-fns/locale";
 
-// Define types for recipes and meal plan
 interface Recipe {
   id: string;
   name: string;
@@ -49,31 +46,50 @@ const days = [
   "Sunday",
 ];
 
+// Calendar localization setup
+const locales = {
+  "en-US": enUS,
+};
+
+const localizer = dateFnsLocalizer({
+  format: dateFns.format,
+  parse: dateFns.parse,
+  startOfWeek: () => dateFns.startOfWeek(new Date(), { weekStartsOn: 1 }),
+  getDay: dateFns.getDay,
+  locales,
+});
+
 export default function MealPlan() {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [mealPlan, setMealPlan] = useState<MealPlan[]>([]);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const {
+    isOpen: isEventDialogOpen,
+    onOpen: openEventDialog,
+    onOpenChange: onEventDialogChange,
+  } = useDisclosure();
 
   const auth = getAuth();
   const user = auth.currentUser;
 
-  // Load Recipes
+  // Fetch Recipes
   useEffect(() => {
     const fetchRecipes = async () => {
       const snapshot = await getDocs(collection(db, "recipes"));
       const data = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      })) as Recipe[]; // Typecast to Recipe[]
+      })) as Recipe[];
       setRecipes(data);
     };
 
     fetchRecipes();
   }, []);
 
-  // Load Meal Plan from Firestore
+  // Fetch Meal Plan
   useEffect(() => {
     const fetchMealPlan = async () => {
       if (!user?.uid) return;
@@ -91,7 +107,7 @@ export default function MealPlan() {
           food: d.recipeName,
           calories: d.calories,
         };
-      }) as MealPlan[]; // Typecast to MealPlan[]
+      }) as MealPlan[];
 
       setMealPlan(data);
     };
@@ -112,10 +128,8 @@ export default function MealPlan() {
         timestamp: new Date(),
       };
 
-      // Save to Firestore
       await addDoc(collection(db, "mealPlans"), newMeal);
 
-      // Update UI
       setMealPlan((prev) => [
         ...prev,
         {
@@ -126,74 +140,67 @@ export default function MealPlan() {
       ]);
 
       toast.success("Meal added!");
-
       setSelectedDay(null);
       setSelectedRecipeId(null);
       onClose();
     }
   };
 
-  const totalCaloriesPerDay = days.map((day) => {
-    const total = mealPlan
-      .filter((m) => m.day === day)
-      .reduce((sum, m) => sum + Number(m.calories || 0), 0);
-    return { day, calories: total };
+  // Convert MealPlan to Calendar Events
+  const mealEvents: Event[] = mealPlan.map((meal) => {
+    const today = new Date();
+    const startOfThisWeek = dateFns.startOfWeek(today, { weekStartsOn: 1 });
+    const dayIndex = days.indexOf(meal.day); // Monday = 0
+    const eventDate = dateFns.addDays(startOfThisWeek, dayIndex);
+
+    const start = dateFns.set(eventDate, {
+      hours: 12,
+      minutes: 0,
+      seconds: 0,
+      milliseconds: 0,
+    });
+    const end = dateFns.addHours(start, 1);
+
+    return {
+      title: `${meal.food} (${meal.calories} cal)`,
+      start,
+      end,
+      allDay: false,
+    };
   });
 
   return (
     <ProtectedRoute>
       <ApplicationLayout>
-        <div className="p-1">
-          <Table
-            className="mt-4"
-            aria-label="Weekly Meal Plan"
-            topContent={
-              <div className="flex justify-between">
-                <h1 className="text-2xl font-bold">Weekly Meal Plan</h1>
-                <Button color="primary" onPress={onOpen}>
-                  Add Meals
-                </Button>
-              </div>
-            }
-          >
-            <TableHeader>
-              <TableColumn>Food</TableColumn>
-              <TableColumn>Day</TableColumn>
-              <TableColumn>Calories</TableColumn>
-            </TableHeader>
-            <TableBody emptyContent={"No rows to display."}>
-              {mealPlan.map((meal, index) => (
-                <TableRow key={index}>
-                  <TableCell>{meal.food}</TableCell>
-                  <TableCell>{meal.day}</TableCell>
-                  <TableCell>{meal.calories}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <div className="p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl font-bold">Weekly Meal Plan</h1>
+            <Button color="primary" onPress={onOpen}>
+              Add Meal
+            </Button>
+          </div>
 
-          <Table className="mt-4" aria-label="Total Calories">
-            <TableHeader>
-              <TableColumn>Day</TableColumn>
-              <TableColumn>Total Calories</TableColumn>
-            </TableHeader>
-            <TableBody>
-              {totalCaloriesPerDay.map(({ day, calories }) => (
-                <TableRow key={day}>
-                  <TableCell>{day}</TableCell>
-                  <TableCell>{calories}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <Calendar
+            localizer={localizer}
+            events={mealEvents}
+            startAccessor="start"
+            endAccessor="end"
+            style={{ height: 600 }}
+            views={["week", "day"]}
+            defaultView="week"
+            onSelectEvent={(event) => {
+              setSelectedEvent(event);
+              openEventDialog();
+            }}
+          />
         </div>
 
-        {/* Modal */}
+        {/* Add Meal Modal */}
         <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
           <ModalContent>
             {(onClose) => (
               <>
-                <ModalHeader>Add Meals</ModalHeader>
+                <ModalHeader>Add Meal</ModalHeader>
                 <ModalBody className="space-y-4">
                   <Select
                     isRequired
@@ -239,6 +246,39 @@ export default function MealPlan() {
                     isDisabled={!selectedDay || !selectedRecipe}
                   >
                     Add
+                  </Button>
+                </ModalFooter>
+              </>
+            )}
+          </ModalContent>
+        </Modal>
+
+        <Modal
+          placement="center"
+          isOpen={isEventDialogOpen}
+          onOpenChange={onEventDialogChange}
+        >
+          <ModalContent>
+            {(onClose) => (
+              <>
+                <ModalHeader>{selectedEvent?.title}</ModalHeader>
+                <ModalBody className="space-y-2">
+                  {selectedEvent && (
+                    <>
+                      <p>
+                        <strong>Meal:</strong> {selectedEvent.title}
+                      </p>
+                    </>
+                  )}
+                </ModalBody>
+                <ModalFooter>
+                  <Button
+                    size="sm"
+                    variant="flat"
+                    color="warning"
+                    onPress={onClose}
+                  >
+                    Close
                   </Button>
                 </ModalFooter>
               </>

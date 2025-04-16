@@ -26,7 +26,7 @@ export default function Categories() {
         createdAt: new Date(),
       });
       toast.success("Category added!");
-      router.push("/pantry/list");
+      router.push("/pantry");
       setName("");
     } catch (err) {
       console.error(err);

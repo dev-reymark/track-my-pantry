@@ -4,9 +4,20 @@ import { useEffect, useState } from "react";
 import ApplicationLayout from "@/components/layout/ApplicationLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Card, CardBody, Button, Link } from "@heroui/react";
+import { Button, Link, Chip } from "@heroui/react";
+import Loader from "@/components/loader";
+import { GoTrash } from "react-icons/go";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 type Category = {
   id: string;
@@ -21,6 +32,7 @@ type PantryItem = {
 };
 
 export default function PantryList() {
+  const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [items, setItems] = useState<PantryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,12 +73,26 @@ export default function PantryList() {
   const getItemsByCategory = (categoryId: string) =>
     items.filter((item) => item.categoryId === categoryId);
 
+  const handleDelete = async (id: string) => {
+    try {
+      // Delete the item from Firestore
+      await deleteDoc(doc(db, "items", id));
+
+      // Update the local state by removing the deleted item
+      setItems((prevItems) => prevItems.filter((item) => item.id !== id));
+      toast.success("Item deleted!");
+      router.push("/pantry");
+    } catch (error) {
+      console.error("Error deleting item: ", error);
+    }
+  };
+
   return (
     <ProtectedRoute>
       <AdminRoute>
         <ApplicationLayout>
           <div className="p-6 space-y-6">
-            <h1 className="text-2xl font-bold">Pantry List</h1>
+            <h1 className="text-2xl font-bold">Pantry</h1>
 
             <div className="flex gap-2">
               <Button as={Link} href="/pantry/additems" color="primary">
@@ -75,14 +101,14 @@ export default function PantryList() {
               <Button
                 as={Link}
                 href="/pantry/categories"
-                color="primary"
+                color="success"
                 variant="flat"
               >
                 Add Categories
               </Button>
             </div>
             {loading ? (
-              <p>Loading...</p>
+              <Loader />
             ) : (
               <>
                 {categories.length === 0 ? (
@@ -96,17 +122,21 @@ export default function PantryList() {
                           {category.name}
                         </h2>
                         {categoryItems.length > 0 ? (
-                          <div className="grid gap-4 md:grid-cols-7">
+                          <div className="flex flex-wrap gap-2">
                             {categoryItems.map((item) => (
-                              <Card key={item.id}>
-                                {/* <CardHeader className="font-medium text-lg">
-                                  {item.name}
-                                </CardHeader> */}
-                                <CardBody className="flex items-center">
-                                  {/* <p>Quantity: {item.quantity}</p> */}
-                                  {item.name}
-                                </CardBody>
-                              </Card>
+                              <Chip
+                                variant="flat"
+                                endContent={
+                                  <GoTrash
+                                    size={16}
+                                    className="mr-1 text-danger"
+                                  />
+                                }
+                                onClose={() => handleDelete(item.id)}
+                                key={item.id}
+                              >
+                                {item.name}
+                              </Chip>
                             ))}
                           </div>
                         ) : (

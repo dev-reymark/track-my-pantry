@@ -4,10 +4,19 @@ import ApplicationLayout from "@/components/layout/ApplicationLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  orderBy,
+  query,
+  setDoc,
+  doc,
+  getDoc,
+} from "firebase/firestore";
 import { Button, Card, Checkbox, CheckboxGroup } from "@heroui/react";
-import Preloader from "@/components/Preloader";
 import toast from "react-hot-toast";
+import Loader from "@/components/loader";
+import { useAuth } from "@/context/AuthContext";
 
 type Category = {
   id: string;
@@ -18,30 +27,31 @@ type PantryItem = {
   id: string;
   name: string;
   categoryId: string;
-  quantity: number;
 };
 
 export default function AddItems() {
+  const { user } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [items, setItems] = useState<PantryItem[]>([]);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch categories
-        const catSnap = await getDocs(
-          query(collection(db, "categories"), orderBy("name"))
-        );
+        setLoading(true);
+
+        const [catSnap, itemSnap] = await Promise.all([
+          getDocs(query(collection(db, "categories"), orderBy("name"))),
+          getDocs(query(collection(db, "items"), orderBy("name"))),
+        ]);
+
         const categoryData = catSnap.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         })) as Category[];
 
-        // Fetch items
-        const itemSnap = await getDocs(
-          query(collection(db, "items"), orderBy("name"))
-        );
         const itemData = itemSnap.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
@@ -49,34 +59,60 @@ export default function AddItems() {
 
         setCategories(categoryData);
         setItems(itemData);
+
+        // Fetch user's previously selected items
+        if (user) {
+          const pantryDoc = await getDoc(doc(db, "userPantry", user.uid));
+          if (pantryDoc.exists()) {
+            setSelectedItems(pantryDoc.data()?.items || []);
+          }
+        }
       } catch (err) {
         console.error("Error loading data:", err);
+        toast.error("Failed to load items.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [user]);
 
   const getItemsByCategory = (categoryId: string) =>
     items.filter((item) => item.categoryId === categoryId);
 
-  const handleSubmit = () => {
-    toast.success("Items added!");
+  const handleSubmit = async () => {
+    if (!user || selectedItems.length === 0) {
+      toast.error("Please select items");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await setDoc(doc(db, "userPantry", user.uid), {
+        items: selectedItems,
+        updatedAt: new Date(),
+      });
+      toast.success("Pantry updated!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to save pantry.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <ProtectedRoute>
       <ApplicationLayout>
-        <div className="max-w-3xl mx-auto px-3">
+        <div className="max-w-3xl mx-auto p-6">
           <Card className="p-6">
             <h1 className="text-2xl font-bold mb-4">
               Select available items in your pantry
             </h1>
 
             {loading ? (
-              <Preloader />
+              <Loader />
             ) : categories.length === 0 ? (
               <p>No categories found.</p>
             ) : (
@@ -88,15 +124,23 @@ export default function AddItems() {
                       {category.name}
                     </h2>
                     {categoryItems.length > 0 ? (
-                      <div className="flex gap-4">
+                      <CheckboxGroup
+                        value={selectedItems}
+                        onValueChange={(keys) =>
+                          setSelectedItems(keys as string[])
+                        }
+                        orientation="horizontal"
+                      >
                         {categoryItems.map((item) => (
-                          <CheckboxGroup key={item.id}>
-                            <Checkbox className="font-medium text-lg">
-                              {item.name}
-                            </Checkbox>
-                          </CheckboxGroup>
+                          <Checkbox
+                            color="success"
+                            key={item.id}
+                            value={item.id}
+                          >
+                            {item.name}
+                          </Checkbox>
                         ))}
-                      </div>
+                      </CheckboxGroup>
                     ) : (
                       <p className="text-default-500">
                         No items in this category.
@@ -106,12 +150,15 @@ export default function AddItems() {
                 );
               })
             )}
+
             <Button
+              isLoading={isSubmitting}
               onPress={handleSubmit}
-              className="mt-4 max-w-xs"
+              className="mt-4"
               color="primary"
+              isDisabled={isSubmitting}
             >
-              Submit
+              {isSubmitting ? "Submitting..." : "Submit"}
             </Button>
           </Card>
         </div>

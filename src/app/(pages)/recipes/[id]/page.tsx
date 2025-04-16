@@ -6,13 +6,19 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Button, Link, Spinner } from "@heroui/react";
+import { Button, Link } from "@heroui/react";
+import Loader from "@/components/loader";
+
+interface Ingredient {
+  id: string | null;
+  name: string;
+}
 
 interface Recipe {
   name: string;
   prepTime: number;
   calories: number;
-  ingredients: string[];
+  ingredients: Ingredient[];
   ingredientType: string;
   tags?: string[];
   description: string;
@@ -42,9 +48,7 @@ export default function ViewRecipe() {
     return (
       <ProtectedRoute>
         <ApplicationLayout>
-          <div className="p-6">
-            <Spinner label="Loading recipe..." />
-          </div>
+          <Loader />
         </ApplicationLayout>
       </ProtectedRoute>
     );
@@ -78,8 +82,23 @@ export default function ViewRecipe() {
             <strong>Calories:</strong> {recipe.calories}
           </div>
           <div>
-            <strong>Ingredients:</strong> {recipe.ingredients.join(", ")}
+            <strong>Ingredients:</strong>{" "}
+            {recipe.ingredients.map((ing) => ing.name).join(", ")}
           </div>
+          <div>
+            <strong>Missing:</strong>{" "}
+            {recipe.ingredients.filter((ing) => !ing.id).length > 0 ? (
+              <span className="text-red-600 font-medium">
+                {recipe.ingredients
+                  .filter((ing) => !ing.id)
+                  .map((ing) => ing.name)
+                  .join(", ")}
+              </span>
+            ) : (
+              "--"
+            )}
+          </div>
+
           <div>
             <strong>Type:</strong> {recipe.ingredientType}
           </div>

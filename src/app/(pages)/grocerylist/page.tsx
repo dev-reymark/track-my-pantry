@@ -3,117 +3,79 @@
 import ApplicationLayout from "@/components/layout/ApplicationLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import {
-  Button,
-  Input,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
   Table,
   TableBody,
   TableCell,
   TableColumn,
   TableHeader,
   TableRow,
-  useDisclosure,
 } from "@heroui/react";
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  addDoc,
-  query,
-  where,
-} from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import Loader from "@/components/loader";
+
+interface Ingredient {
+  id: string | null;
+  name: string;
+}
 
 export default function GroceryList() {
   const [groceryItems, setGroceryItems] = useState<string[]>([]);
-  const [customItem, setCustomItem] = useState("");
-  const { isOpen, onOpen, onOpenChange } = useDisclosure();
-
   const auth = getAuth();
-  const user = auth.currentUser;
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = getAuth().onAuthStateChanged(async (authUser) => {
-      if (!authUser) return;
+    const fetchGroceryItems = async () => {
+      const user = auth.currentUser;
+      if (user) {
+        try {
+          const recipesSnapshot = await getDocs(collection(db, "recipes"));
+          const missingIngredients: string[] = [];
 
-      const mealPlanRef = collection(db, "mealPlans");
-      const q = query(mealPlanRef, where("userId", "==", authUser.uid));
-      const mealSnapshot = await getDocs(q);
-      const recipeIds = Array.from(
-        new Set(mealSnapshot.docs.map((doc) => doc.data().recipeId))
-      );
+          recipesSnapshot.forEach((doc) => {
+            const recipe = doc.data();
+            if (recipe?.ingredients) {
+              recipe.ingredients.forEach((ingredient: Ingredient) => {
+                if (!ingredient.id) {
+                  missingIngredients.push(ingredient.name);
+                }
+              });
+            }
+          });
 
-      const allIngredients: string[] = [];
-
-      for (const recipeId of recipeIds) {
-        const recipeRef = doc(db, "recipes", recipeId);
-        const recipeSnap = await getDoc(recipeRef);
-        if (recipeSnap.exists()) {
-          const data = recipeSnap.data();
-          if (Array.isArray(data.ingredients)) {
-            allIngredients.push(...data.ingredients);
-          }
+          // Set the missing ingredients as grocery items
+          setGroceryItems(missingIngredients);
+        } catch (error) {
+          console.error("Error fetching grocery items:", error);
+        } finally {
+          setLoading(false); // Set loading to false once the data is fetched
         }
       }
+    };
 
-      // Fetch custom grocery items
-      const customItemsSnapshot = await getDocs(
-        collection(db, `users/${authUser.uid}/customGroceryItems`)
-      );
-      const customItems = customItemsSnapshot.docs.map(
-        (doc) => doc.data().name
-      );
+    fetchGroceryItems();
+  }, [auth]);
 
-      const combined = [...allIngredients, ...customItems];
-      const unique = Array.from(new Set(combined)).sort();
-
-      setGroceryItems(unique);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const handleAddCustomItem = async (onClose: () => void) => {
-    if (!customItem.trim() || !user?.uid) return;
-
-    await addDoc(collection(db, `users/${user.uid}/customGroceryItems`), {
-      name: customItem.trim(),
-      createdAt: new Date(),
-    });
-
-    setGroceryItems((prev) =>
-      Array.from(new Set([...prev, customItem.trim()])).sort()
+  if (loading) {
+    return (
+      <ProtectedRoute>
+        <ApplicationLayout>
+          <Loader />
+        </ApplicationLayout>
+      </ProtectedRoute>
     );
-
-    setCustomItem("");
-    onClose();
-  };
+  }
 
   return (
     <ProtectedRoute>
       <ApplicationLayout>
         <div className="p-6">
           <h1 className="text-2xl font-bold">Grocery List</h1>
-          <p>Missing items to buy based on your one-week meal plan.</p>
+          <p>Missing items to buy.</p>
 
-          <Table
-            className="mt-4"
-            aria-label="Grocery List"
-            topContent={
-              <div>
-                <Button color="primary" onPress={onOpen}>
-                  Add Item
-                </Button>
-              </div>
-            }
-          >
+          <Table className="mt-4" aria-label="Grocery List">
             <TableHeader>
               <TableColumn>ITEMS</TableColumn>
             </TableHeader>
@@ -126,37 +88,6 @@ export default function GroceryList() {
             </TableBody>
           </Table>
         </div>
-
-        {/* Modal to add custom grocery item */}
-        <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
-          <ModalContent>
-            {(onClose) => (
-              <>
-                <ModalHeader>Add Grocery Item</ModalHeader>
-                <ModalBody>
-                  <Input
-                    label="Item Name"
-                    value={customItem}
-                    onChange={(e) => setCustomItem(e.target.value)}
-                    placeholder="e.g., Milk, Eggs, Snacks"
-                  />
-                </ModalBody>
-                <ModalFooter>
-                  <Button color="danger" variant="flat" onPress={onClose}>
-                    Cancel
-                  </Button>
-                  <Button
-                    color="primary"
-                    onPress={() => handleAddCustomItem(onClose)}
-                    isDisabled={!customItem.trim()}
-                  >
-                    Add
-                  </Button>
-                </ModalFooter>
-              </>
-            )}
-          </ModalContent>
-        </Modal>
       </ApplicationLayout>
     </ProtectedRoute>
   );

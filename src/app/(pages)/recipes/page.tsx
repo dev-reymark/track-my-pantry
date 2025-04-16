@@ -17,14 +17,19 @@ import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
+import Loader from "@/components/loader"; // Make sure this exists
 
-// Define the Recipe type
+interface Ingredient {
+  id: string | null;
+  name: string;
+}
+
 interface Recipe {
   id: string;
   name: string;
   prepTime: number;
   calories: number;
-  ingredients: string[];
+  ingredients: Ingredient[];
   ingredientType: string;
   tags?: string[];
   description: string;
@@ -32,31 +37,35 @@ interface Recipe {
 
 export default function Recipes() {
   const { user } = useAuth();
-
-  const [recipes, setRecipes] = useState<Recipe[]>([]); // Use the Recipe type here
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [search, setSearch] = useState("");
   const [selectedPrepTimes, setSelectedPrepTimes] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchRecipes = async () => {
-      const snapshot = await getDocs(collection(db, "recipes"));
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Recipe[]; // Type assertion to ensure correct type
-      setRecipes(data);
+      try {
+        const snapshot = await getDocs(collection(db, "recipes"));
+        const data = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Recipe[];
+        setRecipes(data);
+      } catch (error) {
+        console.error("Error fetching recipes:", error);
+      } finally {
+        setLoading(false); // ✅ Set loading to false regardless of outcome
+      }
     };
 
     fetchRecipes();
   }, []);
 
-  // Dynamic options
   const tagOptions = Array.from(new Set(recipes.flatMap((r) => r.tags || [])));
   const typeOptions = Array.from(new Set(recipes.map((r) => r.ingredientType)));
 
-  // Helper to check if a value fits selected filters
   const matchesFilters = (recipe: Recipe) => {
     const matchesPrepTime =
       selectedPrepTimes.length === 0 ||
@@ -70,7 +79,7 @@ export default function Recipes() {
 
     const matchesTags =
       selectedTags.length === 0 ||
-      (recipe.tags || []).some((tag: string) => selectedTags.includes(tag));
+      (recipe.tags || []).some((tag) => selectedTags.includes(tag));
 
     const matchesType =
       selectedTypes.length === 0 ||
@@ -85,6 +94,16 @@ export default function Recipes() {
   };
 
   const filteredRecipes = recipes.filter(matchesFilters);
+
+  if (loading) {
+    return (
+      <ProtectedRoute>
+        <ApplicationLayout>
+          <Loader />
+        </ApplicationLayout>
+      </ProtectedRoute>
+    );
+  }
 
   return (
     <ProtectedRoute>
@@ -114,12 +133,12 @@ export default function Recipes() {
             </Button>
           )}
 
-          {/* FILTERS */}
+          {/* Filters */}
           <div className="flex flex-col gap-4 mb-6">
-            {/* Preparation Time */}
             <div>
               <h2 className="text-lg font-semibold mb-2">Preparation Time</h2>
               <CheckboxGroup
+                orientation="horizontal"
                 value={selectedPrepTimes}
                 onValueChange={setSelectedPrepTimes}
               >
@@ -129,10 +148,10 @@ export default function Recipes() {
               </CheckboxGroup>
             </div>
 
-            {/* Tags */}
             <div>
               <h2 className="text-lg font-semibold mb-2">Tags</h2>
               <CheckboxGroup
+                orientation="horizontal"
                 value={selectedTags}
                 onValueChange={setSelectedTags}
               >
@@ -144,10 +163,10 @@ export default function Recipes() {
               </CheckboxGroup>
             </div>
 
-            {/* Ingredient Type */}
             <div>
               <h2 className="text-lg font-semibold mb-2">Ingredient Type</h2>
               <CheckboxGroup
+                orientation="horizontal"
                 value={selectedTypes}
                 onValueChange={setSelectedTypes}
               >
@@ -160,7 +179,7 @@ export default function Recipes() {
             </div>
           </div>
 
-          {/* RESULTS */}
+          {/* Results */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredRecipes.map((recipe) => (
               <Card
@@ -181,13 +200,26 @@ export default function Recipes() {
                   </div>
                   <div>
                     <strong>Ingredients:</strong>{" "}
-                    {recipe.ingredients.join(", ")}
+                    {recipe.ingredients.map((ing) => ing.name).join(", ")}
+                  </div>
+                  <div>
+                    <strong>Missing:</strong>{" "}
+                    {recipe.ingredients.filter((ing) => !ing.id).length > 0 ? (
+                      <span className="text-red-600 font-medium">
+                        {recipe.ingredients
+                          .filter((ing) => !ing.id)
+                          .map((ing) => ing.name)
+                          .join(", ")}
+                      </span>
+                    ) : (
+                      "--"
+                    )}
                   </div>
                   <div>
                     <strong>Type:</strong> {recipe.ingredientType}
                   </div>
                   <div>
-                    <strong>Tags:</strong> {recipe.tags?.join(", ")}
+                    <strong>Tags:</strong> {recipe.tags?.join(", ") || "None"}
                   </div>
                   <div>
                     <strong>Description:</strong> {recipe.description}
