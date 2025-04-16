@@ -22,7 +22,7 @@ import {
 } from "@heroui/react";
 import { SearchIcon } from "lucide-react";
 import { useEffect, useState } from "react";
-import { collection, getDocs, addDoc, doc, getDoc } from "firebase/firestore";
+import { collection, getDocs, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import Loader from "@/components/loader";
@@ -64,7 +64,6 @@ export default function Recipes() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pantryItems, setPantryItems] = useState<string[]>([]); // Pantry items
 
   // Modal state
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
@@ -74,19 +73,6 @@ export default function Recipes() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const fetchPantryItems = async () => {
-      if (!user) return;
-      try {
-        const pantryRef = doc(db, "userPantry", user.uid);
-        const pantrySnap = await getDoc(pantryRef);
-        if (pantrySnap.exists()) {
-          setPantryItems(pantrySnap.data()?.items || []);
-        }
-      } catch (error) {
-        console.error("Error fetching pantry items:", error);
-      }
-    };
-
     const fetchRecipes = async () => {
       try {
         const snapshot = await getDocs(collection(db, "recipes"));
@@ -102,9 +88,8 @@ export default function Recipes() {
       }
     };
 
-    fetchPantryItems();
     fetchRecipes();
-  }, [user]);
+  }, []);
 
   const tagOptions = Array.from(new Set(recipes.flatMap((r) => r.tags || [])));
   const typeOptions = Array.from(new Set(recipes.map((r) => r.ingredientType)));
@@ -169,12 +154,6 @@ export default function Recipes() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const getMissingIngredients = (recipe: Recipe) => {
-    return recipe.ingredients.filter(
-      (ingredient) => !pantryItems.includes(ingredient.id || "")
-    );
   };
 
   if (loading) {
@@ -263,64 +242,64 @@ export default function Recipes() {
 
           {/* Results */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredRecipes.map((recipe) => {
-              const missingIngredients = getMissingIngredients(recipe);
-              return (
-                <Card
-                  isPressable
-                  as={Link}
-                  href={`/recipes/${recipe.id}`}
-                  key={recipe.id}
-                >
-                  <CardHeader className="flex justify-between font-semibold text-lg">
-                    {recipe.name}
-                    <Button
-                      className="z-50"
-                      color="success"
-                      variant="flat"
-                      size="sm"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleAddToMealPlan(recipe);
-                      }}
-                    >
-                      Add to Meal Plan
-                    </Button>
-                  </CardHeader>
-                  <CardBody className="text-sm space-y-2">
-                    <div>
-                      <strong>Prep Time:</strong> {recipe.prepTime} mins
-                    </div>
-                    <div>
-                      <strong>Calories:</strong> {recipe.calories}
-                    </div>
-                    <div>
-                      <strong>Ingredients:</strong>{" "}
-                      {recipe.ingredients.map((ing) => ing.name).join(", ")}
-                    </div>
-                    <div>
-                      <strong>Missing:</strong>{" "}
-                      {missingIngredients.length > 0 ? (
-                        <span className="text-red-600 font-medium">
-                          {missingIngredients.map((ing) => ing.name).join(", ")}
-                        </span>
-                      ) : (
-                        "--"
-                      )}
-                    </div>
-                    <div>
-                      <strong>Type:</strong> {recipe.ingredientType}
-                    </div>
-                    <div>
-                      <strong>Tags:</strong> {recipe.tags?.join(", ") || "None"}
-                    </div>
-                    <div>
-                      <strong>Description:</strong> {recipe.description}
-                    </div>
-                  </CardBody>
-                </Card>
-              );
-            })}
+            {filteredRecipes.map((recipe) => (
+              <Card
+                isPressable
+                as={Link}
+                href={`/recipes/${recipe.id}`}
+                key={recipe.id}
+              >
+                <CardHeader className="flex justify-between font-semibold text-lg">
+                  {recipe.name}
+                  <Button
+                    className="z-50"
+                    color="success"
+                    variant="flat"
+                    size="sm"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleAddToMealPlan(recipe);
+                    }}
+                  >
+                    Add to Meal Plan
+                  </Button>
+                </CardHeader>
+                <CardBody className="text-sm space-y-2">
+                  <div>
+                    <strong>Prep Time:</strong> {recipe.prepTime} mins
+                  </div>
+                  <div>
+                    <strong>Calories:</strong> {recipe.calories}
+                  </div>
+                  <div>
+                    <strong>Ingredients:</strong>{" "}
+                    {recipe.ingredients.map((ing) => ing.name).join(", ")}
+                  </div>
+                  <div>
+                    <strong>Missing:</strong>{" "}
+                    {recipe.ingredients.filter((ing) => !ing.id).length > 0 ? (
+                      <span className="text-red-600 font-medium">
+                        {recipe.ingredients
+                          .filter((ing) => !ing.id)
+                          .map((ing) => ing.name)
+                          .join(", ")}
+                      </span>
+                    ) : (
+                      "--"
+                    )}
+                  </div>
+                  <div>
+                    <strong>Type:</strong> {recipe.ingredientType}
+                  </div>
+                  <div>
+                    <strong>Tags:</strong> {recipe.tags?.join(", ") || "None"}
+                  </div>
+                  <div>
+                    <strong>Description:</strong> {recipe.description}
+                  </div>
+                </CardBody>
+              </Card>
+            ))}
           </div>
 
           {filteredRecipes.length === 0 && (
@@ -331,50 +310,49 @@ export default function Recipes() {
         {/* Modal for Adding to Meal Plan */}
         <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
           <ModalContent>
-            <ModalHeader>Add to Meal Plan</ModalHeader>
-            <ModalBody>
-              <div className="flex flex-col gap-4">
-                <Select
-                  value={selectedDay || ""}
-                  onChange={(event) =>
-                    setSelectedDay((event.target.value as string) || null)
-                  }
-                  label="Day"
-                >
-                  {days.map((day) => (
-                    <SelectItem key={day}>{day}</SelectItem>
-                  ))}
-                </Select>
-                <Select
-                  value={selectedMealType || ""}
-                  onChange={(event) =>
-                    setSelectedMealType((event.target.value as string) || null)
-                  }
-                  label="Meal Type"
-                >
-                  {mealTypes.map((meal) => (
-                    <SelectItem key={meal}>{meal}</SelectItem>
-                  ))}
-                </Select>
-              </div>
-            </ModalBody>
-            <ModalFooter>
-              <Button
-                color="danger"
-                onPress={onOpenChange}
-                variant="ghost"
-                className="mr-2"
-              >
-                Cancel
-              </Button>
-              <Button
-                color="success"
-                onPress={() => saveToMealPlan(() => onOpenChange())}
-                isLoading={saving}
-              >
-                Save to Meal Plan
-              </Button>
-            </ModalFooter>
+            {(onClose) => (
+              <>
+                <ModalHeader>Add to Meal Plan</ModalHeader>
+                <ModalBody className="space-y-4">
+                  <Select
+                    label="Select Day"
+                    selectedKeys={selectedDay ? [selectedDay] : []}
+                    onSelectionChange={(keys) =>
+                      setSelectedDay(Array.from(keys)[0] as string)
+                    }
+                  >
+                    {days.map((day) => (
+                      <SelectItem key={day}>{day}</SelectItem>
+                    ))}
+                  </Select>
+
+                  <Select
+                    label="Select Meal Type"
+                    selectedKeys={selectedMealType ? [selectedMealType] : []}
+                    onSelectionChange={(keys) =>
+                      setSelectedMealType(Array.from(keys)[0] as string)
+                    }
+                  >
+                    {mealTypes.map((type) => (
+                      <SelectItem key={type}>{type}</SelectItem>
+                    ))}
+                  </Select>
+                </ModalBody>
+                <ModalFooter>
+                  <Button color="danger" variant="flat" onPress={onClose}>
+                    Cancel
+                  </Button>
+                  <Button
+                    color="primary"
+                    isLoading={saving}
+                    isDisabled={!selectedDay || !selectedMealType}
+                    onPress={() => saveToMealPlan(onClose)}
+                  >
+                    Add to Meal Plan
+                  </Button>
+                </ModalFooter>
+              </>
+            )}
           </ModalContent>
         </Modal>
       </ApplicationLayout>

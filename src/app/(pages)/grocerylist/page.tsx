@@ -19,18 +19,43 @@ import Loader from "@/components/loader";
 interface Ingredient {
   id: string | null;
   name: string;
+  quantity: number;
+  unit: string;
+}
+
+interface PantryItem {
+  name: string;
+  quantity: number;
+  unit: string;
 }
 
 export default function GroceryList() {
   const [groceryItems, setGroceryItems] = useState<string[]>([]);
+  const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
   const auth = getAuth();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchGroceryItems = async () => {
+    const fetchData = async () => {
       const user = auth.currentUser;
       if (user) {
         try {
+          // Fetch pantry items
+          const pantrySnapshot = await getDocs(
+            collection(db, `users/${user.uid}/pantryItems`)
+          );
+          const pantryList: PantryItem[] = [];
+          pantrySnapshot.forEach((doc) => {
+            const data = doc.data();
+            pantryList.push({
+              name: data.name,
+              quantity: data.quantity,
+              unit: data.unit,
+            });
+          });
+          setPantryItems(pantryList);
+
+          // Fetch recipes and ingredients
           const recipesSnapshot = await getDocs(collection(db, "recipes"));
           const missingIngredients: string[] = [];
 
@@ -38,7 +63,14 @@ export default function GroceryList() {
             const recipe = doc.data();
             if (recipe?.ingredients) {
               recipe.ingredients.forEach((ingredient: Ingredient) => {
-                if (!ingredient.id) {
+                // Check if pantry contains this ingredient
+                const pantryItem = pantryItems.find(
+                  (item) =>
+                    item.name.toLowerCase() === ingredient.name.toLowerCase()
+                );
+
+                // If the ingredient is missing or not enough in pantry, add to grocery list
+                if (!pantryItem || pantryItem.quantity < ingredient.quantity) {
                   missingIngredients.push(ingredient.name);
                 }
               });
@@ -55,8 +87,8 @@ export default function GroceryList() {
       }
     };
 
-    fetchGroceryItems();
-  }, [auth]);
+    fetchData();
+  }, [auth, pantryItems]);
 
   if (loading) {
     return (

@@ -164,7 +164,7 @@ export default function ApplicationLayout({
                 }`}
               >
                 <List size={18} />
-                Grocery List
+                Grocery Items
               </Link>
 
               <Link

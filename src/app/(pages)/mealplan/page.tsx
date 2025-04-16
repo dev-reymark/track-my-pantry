@@ -15,26 +15,18 @@ import {
   useDisclosure,
 } from "@heroui/react";
 import { useEffect, useState } from "react";
-import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getAuth } from "firebase/auth";
 import toast from "react-hot-toast";
-import { Calendar, dateFnsLocalizer, Event } from "react-big-calendar";
-import * as dateFns from "date-fns";
-import "react-big-calendar/lib/css/react-big-calendar.css";
-import { enUS } from "date-fns/locale";
-
-interface Recipe {
-  id: string;
-  name: string;
-  calories: number;
-}
-
-interface MealPlan {
-  day: string;
-  food: string;
-  calories: number;
-}
 
 const days = [
   "Monday",
@@ -45,37 +37,34 @@ const days = [
   "Saturday",
   "Sunday",
 ];
+const mealTypes = ["breakfast", "lunch", "dinner"];
 
-// Calendar localization setup
-const locales = {
-  "en-US": enUS,
-};
+interface Recipe {
+  id: string;
+  name: string;
+  calories: number;
+}
 
-const localizer = dateFnsLocalizer({
-  format: dateFns.format,
-  parse: dateFns.parse,
-  startOfWeek: () => dateFns.startOfWeek(new Date(), { weekStartsOn: 1 }),
-  getDay: dateFns.getDay,
-  locales,
-});
+interface MealPlan {
+  id: string;
+  day: string;
+  mealType: string;
+  recipeName: string;
+  calories: number;
+}
 
-export default function MealPlan() {
+export default function MealPlanTable() {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [mealPlan, setMealPlan] = useState<MealPlan[]>([]);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-  const {
-    isOpen: isEventDialogOpen,
-    onOpen: openEventDialog,
-    onOpenChange: onEventDialogChange,
-  } = useDisclosure();
+  const [selectedMealType, setSelectedMealType] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const auth = getAuth();
   const user = auth.currentUser;
 
-  // Fetch Recipes
   useEffect(() => {
     const fetchRecipes = async () => {
       const snapshot = await getDocs(collection(db, "recipes"));
@@ -89,7 +78,6 @@ export default function MealPlan() {
     fetchRecipes();
   }, []);
 
-  // Fetch Meal Plan
   useEffect(() => {
     const fetchMealPlan = async () => {
       if (!user?.uid) return;
@@ -103,8 +91,10 @@ export default function MealPlan() {
       const data = snapshot.docs.map((doc) => {
         const d = doc.data();
         return {
+          id: doc.id,
           day: d.day,
-          food: d.recipeName,
+          mealType: d.mealType,
+          recipeName: d.recipeName,
           calories: d.calories,
         };
       }) as MealPlan[];
@@ -118,56 +108,59 @@ export default function MealPlan() {
   const selectedRecipe = recipes.find((r) => r.id === selectedRecipeId) || null;
 
   const handleAddMeal = async (onClose: () => void) => {
-    if (selectedDay && selectedRecipe && user?.uid) {
-      const newMeal = {
-        userId: user.uid,
-        day: selectedDay,
-        recipeId: selectedRecipe.id,
-        recipeName: selectedRecipe.name,
-        calories: selectedRecipe.calories,
-        timestamp: new Date(),
-      };
-
-      await addDoc(collection(db, "mealPlans"), newMeal);
-
-      setMealPlan((prev) => [
-        ...prev,
-        {
+    if (selectedDay && selectedMealType && selectedRecipe && user?.uid) {
+      setLoading(true);
+      try {
+        const newMeal = {
+          userId: user.uid,
           day: selectedDay,
-          food: selectedRecipe.name,
+          mealType: selectedMealType,
+          recipeId: selectedRecipe.id,
+          recipeName: selectedRecipe.name,
           calories: selectedRecipe.calories,
-        },
-      ]);
+          timestamp: new Date(),
+        };
 
-      toast.success("Meal added!");
-      setSelectedDay(null);
-      setSelectedRecipeId(null);
-      onClose();
+        const docRef = await addDoc(collection(db, "mealPlans"), newMeal);
+
+        setMealPlan((prev) => [
+          ...prev,
+          {
+            id: docRef.id, // ✅ Include the ID from Firestore
+            day: selectedDay,
+            mealType: selectedMealType,
+            recipeName: selectedRecipe.name,
+            calories: selectedRecipe.calories,
+          },
+        ]);
+
+        toast.success("Meal added!");
+        setSelectedDay(null);
+        setSelectedMealType(null);
+        setSelectedRecipeId(null);
+        onClose();
+      } catch (err) {
+        console.error("Failed to add meal:", err);
+        toast.error("Something went wrong. Try again.");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
-  // Convert MealPlan to Calendar Events
-  const mealEvents: Event[] = mealPlan.map((meal) => {
-    const today = new Date();
-    const startOfThisWeek = dateFns.startOfWeek(today, { weekStartsOn: 1 });
-    const dayIndex = days.indexOf(meal.day); // Monday = 0
-    const eventDate = dateFns.addDays(startOfThisWeek, dayIndex);
+  const getMeal = (day: string, type: string) =>
+    mealPlan.find((m) => m.day === day && m.mealType === type);
 
-    const start = dateFns.set(eventDate, {
-      hours: 12,
-      minutes: 0,
-      seconds: 0,
-      milliseconds: 0,
-    });
-    const end = dateFns.addHours(start, 1);
-
-    return {
-      title: `${meal.food} (${meal.calories} cal)`,
-      start,
-      end,
-      allDay: false,
-    };
-  });
+  const handleDeleteMeal = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "mealPlans", id));
+      setMealPlan((prev) => prev.filter((m) => m.id !== id));
+      toast.success("Meal deleted!");
+    } catch (err) {
+      console.error("Failed to delete meal:", err);
+      toast.error("Failed to delete meal.");
+    }
+  };
 
   return (
     <ProtectedRoute>
@@ -180,19 +173,63 @@ export default function MealPlan() {
             </Button>
           </div>
 
-          <Calendar
-            localizer={localizer}
-            events={mealEvents}
-            startAccessor="start"
-            endAccessor="end"
-            style={{ height: 600 }}
-            views={["week", "day"]}
-            defaultView="week"
-            onSelectEvent={(event) => {
-              setSelectedEvent(event);
-              openEventDialog();
-            }}
-          />
+          <div className="overflow-x-auto">
+            <table className="min-w-full border border-gray-300">
+              <thead>
+                <tr>
+                  <th className="border p-2 text-left bg-gray-100">
+                    Meal Type
+                  </th>
+                  {days.map((day) => (
+                    <th
+                      key={day}
+                      className="border p-2 text-center bg-gray-100"
+                    >
+                      {day}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {mealTypes.map((mealType) => (
+                  <tr key={mealType}>
+                    <td className="border p-2 capitalize font-semibold">
+                      {mealType}
+                    </td>
+                    {days.map((day) => {
+                      const meal = getMeal(day, mealType);
+                      return (
+                        <td
+                          key={`${day}-${mealType}`}
+                          className="border p-2 text-sm text-center"
+                        >
+                          {meal ? (
+                            <div className="relative">
+                              <button
+                                onClick={() => handleDeleteMeal(meal.id)}
+                                className="absolute top-0 right-0 text-red-500 hover:text-red-700 text-xs"
+                                title="Delete"
+                              >
+                                ✕
+                              </button>
+                              <div className="font-medium">
+                                {meal.recipeName}
+                              </div>
+                              <div className="text-gray-500">
+                                {meal.calories} cal
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic">--</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Add Meal Modal */}
@@ -212,6 +249,19 @@ export default function MealPlan() {
                   >
                     {days.map((day) => (
                       <SelectItem key={day}>{day}</SelectItem>
+                    ))}
+                  </Select>
+
+                  <Select
+                    isRequired
+                    label="Select Meal Type"
+                    selectedKeys={selectedMealType ? [selectedMealType] : []}
+                    onSelectionChange={(keys) =>
+                      setSelectedMealType(Array.from(keys)[0] as string)
+                    }
+                  >
+                    {mealTypes.map((type) => (
+                      <SelectItem key={type}>{type}</SelectItem>
                     ))}
                   </Select>
 
@@ -241,44 +291,14 @@ export default function MealPlan() {
                     Cancel
                   </Button>
                   <Button
+                    isLoading={loading}
                     color="primary"
                     onPress={() => handleAddMeal(onClose)}
-                    isDisabled={!selectedDay || !selectedRecipe}
+                    isDisabled={
+                      !selectedDay || !selectedMealType || !selectedRecipe
+                    }
                   >
-                    Add
-                  </Button>
-                </ModalFooter>
-              </>
-            )}
-          </ModalContent>
-        </Modal>
-
-        <Modal
-          placement="center"
-          isOpen={isEventDialogOpen}
-          onOpenChange={onEventDialogChange}
-        >
-          <ModalContent>
-            {(onClose) => (
-              <>
-                <ModalHeader>{selectedEvent?.title}</ModalHeader>
-                <ModalBody className="space-y-2">
-                  {selectedEvent && (
-                    <>
-                      <p>
-                        <strong>Meal:</strong> {selectedEvent.title}
-                      </p>
-                    </>
-                  )}
-                </ModalBody>
-                <ModalFooter>
-                  <Button
-                    size="sm"
-                    variant="flat"
-                    color="warning"
-                    onPress={onClose}
-                  >
-                    Close
+                    {loading ? "Adding..." : "Add Meal"}
                   </Button>
                 </ModalFooter>
               </>
