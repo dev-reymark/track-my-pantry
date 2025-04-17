@@ -8,6 +8,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button, Link } from "@heroui/react";
 import Loader from "@/components/loader";
+import { useAuth } from "@/context/AuthContext";
 
 interface Ingredient {
   id: string | null;
@@ -26,23 +27,43 @@ interface Recipe {
 
 export default function ViewRecipe() {
   const { id } = useParams();
+  const { user } = useAuth();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
+  const [pantryItems, setPantryItems] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchRecipe = async () => {
-      if (!id) return;
-      const docRef = doc(db, "recipes", id as string);
-      const docSnap = await getDoc(docRef);
+    const fetchRecipeAndPantry = async () => {
+      if (!id || !user?.uid) return;
 
-      if (docSnap.exists()) {
-        setRecipe(docSnap.data() as Recipe); // Type assertion
+      try {
+        const docRef = doc(db, "recipes", id as string);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          setRecipe(docSnap.data() as Recipe);
+        }
+
+        const pantryRef = doc(db, "userPantry", user.uid);
+        const pantrySnap = await getDoc(pantryRef);
+        if (pantrySnap.exists()) {
+          setPantryItems(pantrySnap.data()?.items || []);
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
-    fetchRecipe();
-  }, [id]);
+    fetchRecipeAndPantry();
+  }, [id, user]);
+
+  const getMissingIngredients = (recipe: Recipe) => {
+    return recipe.ingredients.filter(
+      (ingredient) => !pantryItems.includes(ingredient.id || "")
+    );
+  };
 
   if (loading) {
     return (
@@ -66,6 +87,8 @@ export default function ViewRecipe() {
     );
   }
 
+  const missingIngredients = getMissingIngredients(recipe);
+
   return (
     <ProtectedRoute>
       <ApplicationLayout>
@@ -87,12 +110,9 @@ export default function ViewRecipe() {
           </div>
           <div>
             <strong>Missing:</strong>{" "}
-            {recipe.ingredients.filter((ing) => !ing.id).length > 0 ? (
+            {missingIngredients.length > 0 ? (
               <span className="text-red-600 font-medium">
-                {recipe.ingredients
-                  .filter((ing) => !ing.id)
-                  .map((ing) => ing.name)
-                  .join(", ")}
+                {missingIngredients.map((ing) => ing.name).join(", ")}
               </span>
             ) : (
               "--"
@@ -103,7 +123,7 @@ export default function ViewRecipe() {
             <strong>Type:</strong> {recipe.ingredientType}
           </div>
           <div>
-            <strong>Tags:</strong> {recipe.tags?.join(", ")}
+            <strong>Tags:</strong> {recipe.tags?.join(", ") || "None"}
           </div>
           <div className="whitespace-pre-wrap">
             <strong>Description:</strong> {recipe.description}

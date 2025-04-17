@@ -12,12 +12,18 @@ import {
 } from "@heroui/react";
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  doc,
+  getDoc,
+} from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import Loader from "@/components/loader";
 
 interface Ingredient {
-  id: string | null;
   name: string;
   quantity: number;
   unit: string;
@@ -25,70 +31,82 @@ interface Ingredient {
 
 interface PantryItem {
   name: string;
-  quantity: number;
-  unit: string;
+}
+
+interface MealPlanItem {
+  recipeId: string;
 }
 
 export default function GroceryList() {
   const [groceryItems, setGroceryItems] = useState<string[]>([]);
-  const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
-  const auth = getAuth();
   const [loading, setLoading] = useState(true);
+  const auth = getAuth();
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchGroceryItems = async () => {
       const user = auth.currentUser;
-      if (user) {
-        try {
-          // Fetch pantry items
-          const pantrySnapshot = await getDocs(
-            collection(db, `users/${user.uid}/pantryItems`)
-          );
-          const pantryList: PantryItem[] = [];
-          pantrySnapshot.forEach((doc) => {
-            const data = doc.data();
-            pantryList.push({
-              name: data.name,
-              quantity: data.quantity,
-              unit: data.unit,
+      if (!user) return;
+
+      try {
+        // Fetch pantry items (only names are needed)
+        const pantrySnapshot = await getDocs(
+          collection(db, `users/${user.uid}/pantryItems`)
+        );
+        const pantryList: PantryItem[] = pantrySnapshot.docs.map((doc) => ({
+          name: doc.data().name,
+        }));
+
+        // Fetch meal plan recipes for this user
+        const mealPlanSnapshot = await getDocs(
+          query(collection(db, "mealPlans"), where("userId", "==", user.uid))
+        );
+        const mealPlans = mealPlanSnapshot.docs.map((doc) =>
+          doc.data()
+        ) as MealPlanItem[];
+
+        // Get all unique recipe IDs from the meal plan
+        const recipeIds = [...new Set(mealPlans.map((mp) => mp.recipeId))];
+
+        // Fetch all recipes that are in the meal plan
+        const allIngredients: Ingredient[] = [];
+
+        for (const recipeId of recipeIds) {
+          const recipeDoc = await getDoc(doc(db, "recipes", recipeId));
+          const recipeData = recipeDoc.data();
+          if (recipeData && recipeData.ingredients) {
+            recipeData.ingredients.forEach((ingredient: Ingredient) => {
+              allIngredients.push(ingredient);
             });
-          });
-          setPantryItems(pantryList);
-
-          // Fetch recipes and ingredients
-          const recipesSnapshot = await getDocs(collection(db, "recipes"));
-          const missingIngredients: string[] = [];
-
-          recipesSnapshot.forEach((doc) => {
-            const recipe = doc.data();
-            if (recipe?.ingredients) {
-              recipe.ingredients.forEach((ingredient: Ingredient) => {
-                // Check if pantry contains this ingredient
-                const pantryItem = pantryItems.find(
-                  (item) =>
-                    item.name.toLowerCase() === ingredient.name.toLowerCase()
-                );
-
-                // If the ingredient is missing or not enough in pantry, add to grocery list
-                if (!pantryItem || pantryItem.quantity < ingredient.quantity) {
-                  missingIngredients.push(ingredient.name);
-                }
-              });
-            }
-          });
-
-          // Set the missing ingredients as grocery items
-          setGroceryItems(missingIngredients);
-        } catch (error) {
-          console.error("Error fetching grocery items:", error);
-        } finally {
-          setLoading(false); // Set loading to false once the data is fetched
+          }
         }
+
+        // Get missing ingredients (not in pantry)
+        const missingIngredients: string[] = [];
+
+        allIngredients.forEach((ingredient) => {
+          const isInPantry = pantryList.some(
+            (item) =>
+              item.name.trim().toLowerCase() ===
+              ingredient.name.trim().toLowerCase()
+          );
+
+          if (!isInPantry) {
+            missingIngredients.push(ingredient.name);
+          }
+        });
+
+        // Remove duplicates
+        const uniqueMissingIngredients = [...new Set(missingIngredients)];
+        setGroceryItems(uniqueMissingIngredients);
+      } catch (err) {
+        console.error("Error fetching grocery list:", err);
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchData();
-  }, [auth, pantryItems]);
+    fetchGroceryItems();
+  }, [auth]);
 
   if (loading) {
     return (
@@ -105,7 +123,7 @@ export default function GroceryList() {
       <ApplicationLayout>
         <div className="p-6">
           <h1 className="text-2xl font-bold">Grocery List</h1>
-          <p>Missing items to buy.</p>
+          <p>These are the missing ingredients based on your meal plan.</p>
 
           <Table className="mt-4" aria-label="Grocery List">
             <TableHeader>

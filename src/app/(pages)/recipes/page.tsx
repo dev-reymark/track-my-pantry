@@ -266,59 +266,56 @@ export default function Recipes() {
             {filteredRecipes.map((recipe) => {
               const missingIngredients = getMissingIngredients(recipe);
               return (
-                <Card
-                  isPressable
-                  as={Link}
-                  href={`/recipes/${recipe.id}`}
-                  key={recipe.id}
-                >
-                  <CardHeader className="flex justify-between font-semibold text-lg">
-                    {recipe.name}
-                    <Button
-                      className="z-50"
-                      color="success"
-                      variant="flat"
-                      size="sm"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleAddToMealPlan(recipe);
-                      }}
-                    >
-                      Add to Meal Plan
-                    </Button>
-                  </CardHeader>
-                  <CardBody className="text-sm space-y-2">
-                    <div>
-                      <strong>Prep Time:</strong> {recipe.prepTime} mins
-                    </div>
-                    <div>
-                      <strong>Calories:</strong> {recipe.calories}
-                    </div>
-                    <div>
-                      <strong>Ingredients:</strong>{" "}
-                      {recipe.ingredients.map((ing) => ing.name).join(", ")}
-                    </div>
-                    <div>
-                      <strong>Missing:</strong>{" "}
-                      {missingIngredients.length > 0 ? (
-                        <span className="text-red-600 font-medium">
-                          {missingIngredients.map((ing) => ing.name).join(", ")}
-                        </span>
-                      ) : (
-                        "--"
-                      )}
-                    </div>
-                    <div>
-                      <strong>Type:</strong> {recipe.ingredientType}
-                    </div>
-                    <div>
-                      <strong>Tags:</strong> {recipe.tags?.join(", ") || "None"}
-                    </div>
-                    <div>
-                      <strong>Description:</strong> {recipe.description}
-                    </div>
-                  </CardBody>
-                </Card>
+                <div key={recipe.id}>
+                  <Card isPressable as={Link} href={`/recipes/${recipe.id}`}>
+                    <CardHeader className="flex justify-between font-semibold text-lg">
+                      {recipe.name}
+                    </CardHeader>
+                    <CardBody className="text-sm space-y-2">
+                      <div>
+                        <strong>Prep Time:</strong> {recipe.prepTime} mins
+                      </div>
+                      <div>
+                        <strong>Calories:</strong> {recipe.calories}
+                      </div>
+                      <div>
+                        <strong>Ingredients:</strong>{" "}
+                        {recipe.ingredients.map((ing) => ing.name).join(", ")}
+                      </div>
+                      <div>
+                        <strong>Missing:</strong>{" "}
+                        {missingIngredients.length > 0 ? (
+                          <span className="text-red-600 font-medium">
+                            {missingIngredients
+                              .map((ing) => ing.name)
+                              .join(", ")}
+                          </span>
+                        ) : (
+                          "--"
+                        )}
+                      </div>
+                      <div>
+                        <strong>Type:</strong> {recipe.ingredientType}
+                      </div>
+                      <div>
+                        <strong>Tags:</strong>{" "}
+                        {recipe.tags?.join(", ") || "None"}
+                      </div>
+                      <div>
+                        <strong>Description:</strong> {recipe.description}
+                      </div>
+                    </CardBody>
+                  </Card>
+                  <Button
+                    className="z-70 mt-4"
+                    color="success"
+                    variant="flat"
+                    size="sm"
+                    onPress={() => handleAddToMealPlan(recipe)}
+                  >
+                    Add to Meal Plan
+                  </Button>
+                </div>
               );
             })}
           </div>
