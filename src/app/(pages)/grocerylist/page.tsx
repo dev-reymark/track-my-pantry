@@ -11,128 +11,139 @@ import {
   TableRow,
 } from "@heroui/react";
 import { useEffect, useState } from "react";
-import { db } from "@/lib/firebase";
 import {
   collection,
-  getDocs,
   query,
   where,
-  doc,
+  onSnapshot,
   getDoc,
+  doc,
+  getDocs,
 } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { getAuth } from "firebase/auth";
 import Loader from "@/components/loader";
 
 interface Ingredient {
+  id: string;
   name: string;
-  quantity: number;
-  unit: string;
-}
-
-interface PantryItem {
-  name: string;
-}
-
-interface MealPlanItem {
-  recipeId: string;
 }
 
 export default function GroceryList() {
-  const [groceryItems, setGroceryItems] = useState<string[]>([]);
+  const [missingIngredients, setMissingIngredients] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+
   const auth = getAuth();
+  const user = auth.currentUser;
 
   useEffect(() => {
-    const fetchGroceryItems = async () => {
-      const user = auth.currentUser;
-      if (!user) return;
+    if (!user?.uid) return;
 
-      try {
-        // Fetch pantry items (only names are needed)
-        const pantrySnapshot = await getDocs(
-          collection(db, `users/${user.uid}/pantryItems`)
-        );
-        const pantryList: PantryItem[] = pantrySnapshot.docs.map((doc) => ({
-          name: doc.data().name,
-        }));
+    // Fetching pantry and meal plan data
+    const pantryRef = doc(db, "userPantry", user.uid); // Single document for userPantry
+    const mealPlansQuery = query(
+      collection(db, "mealPlans"),
+      where("userId", "==", user.uid)
+    );
 
-        // Fetch meal plan recipes for this user
-        const mealPlanSnapshot = await getDocs(
-          query(collection(db, "mealPlans"), where("userId", "==", user.uid))
-        );
-        const mealPlans = mealPlanSnapshot.docs.map((doc) =>
-          doc.data()
-        ) as MealPlanItem[];
+    const unsubscribePantry = onSnapshot(pantryRef, async (pantrySnap) => {
+      const pantryData = pantrySnap.data();
+      const pantryItemIds: string[] =
+        pantryData?.items?.map((item: string) => item.trim().toLowerCase()) ||
+        [];
 
-        // Get all unique recipe IDs from the meal plan
-        const recipeIds = [...new Set(mealPlans.map((mp) => mp.recipeId))];
+      console.log("Pantry Item IDs:", pantryItemIds); // Log pantry item IDs
 
-        // Fetch all recipes that are in the meal plan
-        const allIngredients: Ingredient[] = [];
+      // Fetch item names from the "items" collection
+      const itemSnap = await getDocs(collection(db, "items"));
+      const allItems = itemSnap.docs.map((doc) => ({
+        id: doc.id,
+        name: doc.data().name,
+      }));
 
-        for (const recipeId of recipeIds) {
-          const recipeDoc = await getDoc(doc(db, "recipes", recipeId));
-          const recipeData = recipeDoc.data();
-          if (recipeData && recipeData.ingredients) {
-            recipeData.ingredients.forEach((ingredient: Ingredient) => {
-              allIngredients.push(ingredient);
-            });
-          }
+      // Create a map of item IDs to names
+      const itemNameMap = allItems.reduce((acc, item) => {
+        acc[item.id] = item.name.trim().toLowerCase();
+        return acc;
+      }, {} as Record<string, string>);
+
+      console.log("Item Name Map:", itemNameMap); // Log the item name map
+
+      const unsubscribeMeals = onSnapshot(mealPlansQuery, async (mealSnap) => {
+        const mealPlans = mealSnap.docs.map((doc) => doc.data());
+        const recipeIds = [...new Set(mealPlans.map((meal) => meal.recipeId))];
+
+        console.log("Recipe IDs:", recipeIds); // Log recipe IDs
+
+        if (recipeIds.length === 0) {
+          setMissingIngredients([]);
+          setLoading(false);
+          return;
         }
 
-        // Get missing ingredients (not in pantry)
-        const missingIngredients: string[] = [];
+        const allIngredients: string[] = [];
 
-        allIngredients.forEach((ingredient) => {
-          const isInPantry = pantryList.some(
-            (item) =>
-              item.name.trim().toLowerCase() ===
-              ingredient.name.trim().toLowerCase()
-          );
+        await Promise.all(
+          recipeIds.map(async (recipeId) => {
+            const recipeRef = doc(db, "recipes", recipeId);
+            const recipeSnap = await getDoc(recipeRef);
+            const recipeData = recipeSnap.data();
+            const ingredients: Ingredient[] = recipeData?.ingredients || [];
 
-          if (!isInPantry) {
-            missingIngredients.push(ingredient.name);
-          }
-        });
+            console.log("Ingredients for Recipe ID:", recipeId, ingredients); // Log ingredients
 
-        // Remove duplicates
-        const uniqueMissingIngredients = [...new Set(missingIngredients)];
-        setGroceryItems(uniqueMissingIngredients);
-      } catch (err) {
-        console.error("Error fetching grocery list:", err);
-      } finally {
+            ingredients.forEach((ingredient) => {
+              const ingredientName = ingredient.name?.trim().toLowerCase();
+              const ingredientId = ingredient.id?.trim().toLowerCase();
+
+              // Check if ingredient exists in pantry
+              const existsInPantry = pantryItemIds.some(
+                (itemId) => itemId === ingredientId
+              );
+
+              console.log(
+                `Checking if "${ingredientName}" exists in pantry: ${existsInPantry}`
+              ); // Log individual ingredient check
+
+              if (!existsInPantry && ingredientName) {
+                allIngredients.push(ingredientName);
+              }
+            });
+          })
+        );
+
+        setMissingIngredients([...new Set(allIngredients)]);
         setLoading(false);
-      }
-    };
+      });
 
-    fetchGroceryItems();
-  }, [auth]);
+      return () => unsubscribeMeals();
+    });
 
-  if (loading) {
-    return (
-      <ProtectedRoute>
-        <ApplicationLayout>
-          <Loader />
-        </ApplicationLayout>
-      </ProtectedRoute>
-    );
-  }
+    return () => unsubscribePantry();
+  }, [user]);
 
   return (
     <ProtectedRoute>
       <ApplicationLayout>
-        <div className="p-6">
+        <div className="max-w-3xl mx-auto p-6">
           <h1 className="text-2xl font-bold">Grocery List</h1>
-          <p>These are the missing ingredients based on your meal plan.</p>
+          <p className="mb-4">
+            These are the missing ingredients based on your meal plan and
+            pantry.
+          </p>
 
           <Table className="mt-4" aria-label="Grocery List">
             <TableHeader>
               <TableColumn>ITEMS</TableColumn>
             </TableHeader>
-            <TableBody emptyContent={"No items needed. You're fully stocked!"}>
-              {groceryItems.map((item, index) => (
-                <TableRow key={index}>
-                  <TableCell>{item}</TableCell>
+            <TableBody
+              isLoading={loading}
+              loadingContent={<Loader />}
+              emptyContent={"No items needed. You're fully stocked!"}
+            >
+              {missingIngredients.map((item, idx) => (
+                <TableRow key={idx}>
+                  <TableCell className="capitalize">{item}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

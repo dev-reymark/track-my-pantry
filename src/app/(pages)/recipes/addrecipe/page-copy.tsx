@@ -2,7 +2,7 @@
 
 import ApplicationLayout from "@/components/layout/ApplicationLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { Input, Button, Select, SelectItem, Textarea } from "@heroui/react";
+import { Input, Textarea, Button, Select, SelectItem } from "@heroui/react";
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, getDocs } from "firebase/firestore";
@@ -32,6 +32,8 @@ export default function AddRecipe() {
   const [calories, setCalories] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
+  const [customIngredients, setCustomIngredients] = useState<string[]>([]);
+  const [customInput, setCustomInput] = useState("");
 
   useEffect(() => {
     const fetchItems = async () => {
@@ -47,7 +49,12 @@ export default function AddRecipe() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !selectedIngredientIds.length || !prepTime || !description) {
+    if (
+      !name ||
+      (!selectedIngredientIds.length && !customIngredients.length) ||
+      !prepTime ||
+      !description
+    ) {
       return toast.error("Please fill in all required fields.");
     }
 
@@ -58,11 +65,23 @@ export default function AddRecipe() {
       }
     );
 
+    const finalCustomIngredients: Ingredient[] = customIngredients.map(
+      (name) => ({
+        id: null,
+        name,
+      })
+    );
+
+    const ingredients: Ingredient[] = [
+      ...selectedIngredients,
+      ...finalCustomIngredients,
+    ];
+
     setLoading(true);
     try {
       await addDoc(collection(db, "recipes"), {
         name: name.trim(),
-        ingredients: selectedIngredients,
+        ingredients,
         prepTime: parseInt(prepTime),
         tags: tags ? tags.split(",").map((t) => t.trim()) : [],
         ingredientType,
@@ -102,13 +121,48 @@ export default function AddRecipe() {
               }
               isRequired
             >
-              {availableItems
-                .sort((a, b) => a.name.localeCompare(b.name)) // Sort alphabetically A-Z
-                .map((item) => (
-                  <SelectItem key={item.id}>{item.name}</SelectItem>
-                ))}
+              {availableItems.map((item) => (
+                <SelectItem key={item.id}>{item.name}</SelectItem>
+              ))}
             </Select>
-
+            <div>
+              <Input
+                label="Add Custom Ingredient"
+                value={customInput}
+                onChange={(e) => setCustomInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && customInput.trim()) {
+                    e.preventDefault();
+                    setCustomIngredients((prev) => [
+                      ...prev,
+                      customInput.trim(),
+                    ]);
+                    setCustomInput("");
+                  }
+                }}
+                placeholder="Type and press Enter to add"
+              />
+              <div className="flex flex-wrap gap-2 mt-2">
+                {customIngredients.map((ingredient, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-gray-200 text-sm px-2 py-1 rounded-full flex items-center gap-1"
+                  >
+                    {ingredient}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCustomIngredients((prev) =>
+                          prev.filter((_, i) => i !== idx)
+                        )
+                      }
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
             <Input
               label="Preparation Time (mins)"
               type="number"

@@ -77,7 +77,7 @@ export default function ApplicationLayout({
           </Button>
         </div>
         <div className="flex-1 overflow-y-auto">
-          <ul className="space-y-2">
+          {/* <ul className="space-y-2">
             <li>
               <Link
                 href="/home"
@@ -90,7 +90,7 @@ export default function ApplicationLayout({
                 <Home size={18} />
                 Home
               </Link>
-              {user?.role === "admin" && (
+              {user?.role === "admin" ? (
                 <Link
                   href="/pantry"
                   className={`flex items-center gap-2 p-2 rounded ${
@@ -102,7 +102,7 @@ export default function ApplicationLayout({
                   <BiBasket size={18} />
                   Pantry
                 </Link>
-              )}
+              ) : null}
               {!openedFromMore && (
                 <>
                   <Link
@@ -166,6 +166,127 @@ export default function ApplicationLayout({
                 <List size={18} />
                 Grocery Items
               </Link>
+
+              <Link
+                href="/accountsetting"
+                className={`flex items-center gap-2 p-2 rounded ${
+                  isActive("/accountsetting")
+                    ? "bg-gray-200 text-black font-semibold"
+                    : "text-gray-800"
+                }`}
+              >
+                <Settings size={18} />
+                Account Settings
+              </Link>
+            </li>
+          </ul> */}
+
+          <ul className="space-y-2">
+            <li>
+              <Link
+                href="/home"
+                className={`flex items-center gap-2 p-2 rounded ${
+                  isActive("/home")
+                    ? "bg-gray-200 text-black font-semibold"
+                    : "text-gray-800"
+                }`}
+              >
+                <Home size={18} />
+                Home
+              </Link>
+
+              {user?.role === "admin" ? (
+                <>
+                  <Link
+                    href="/pantry"
+                    className={`flex items-center gap-2 p-2 rounded ${
+                      isActive("/pantry")
+                        ? "bg-gray-200 text-black font-semibold"
+                        : "text-gray-800"
+                    }`}
+                  >
+                    <BiBasket size={18} />
+                    Pantry
+                  </Link>
+                  <Link
+                    href="/recipes"
+                    className={`flex items-center gap-2 p-2 rounded ${
+                      isActive("/recipes")
+                        ? "bg-gray-200 text-black font-semibold"
+                        : "text-gray-800"
+                    }`}
+                  >
+                    <BookOpen size={18} />
+                    Recipes
+                  </Link>
+                </>
+              ) : (
+                !openedFromMore && (
+                  <>
+                    <Link
+                      href="/mypantry"
+                      className={`flex items-center gap-2 p-2 rounded ${
+                        isActive("/mypantry")
+                          ? "bg-gray-200 text-black font-semibold"
+                          : "text-gray-800"
+                      }`}
+                    >
+                      <ShoppingBasket size={18} />
+                      My Pantry
+                    </Link>
+
+                    <Link
+                      href="/additems"
+                      className={`flex items-center gap-2 p-2 rounded ${
+                        isActive("/additems")
+                          ? "bg-gray-200 text-black font-semibold"
+                          : "text-gray-800"
+                      }`}
+                    >
+                      <PlusCircle size={18} />
+                      Add Items
+                    </Link>
+
+                    <Link
+                      href="/recipes"
+                      className={`flex items-center gap-2 p-2 rounded ${
+                        isActive("/recipes")
+                          ? "bg-gray-200 text-black font-semibold"
+                          : "text-gray-800"
+                      }`}
+                    >
+                      <BookOpen size={18} />
+                      Recipes
+                    </Link>
+
+                    <Link
+                      href="/mealplan"
+                      className={`flex items-center gap-2 p-2 rounded ${
+                        isActive("/mealplan")
+                          ? "bg-gray-200 text-black font-semibold"
+                          : "text-gray-800"
+                      }`}
+                    >
+                      <CalendarDays size={18} />
+                      Meal Plan
+                    </Link>
+                  </>
+                )
+              )}
+
+              {!user?.role || user?.role !== "admin" ? (
+                <Link
+                  href="/grocerylist"
+                  className={`flex items-center gap-2 p-2 rounded ${
+                    isActive("/grocerylist")
+                      ? "bg-gray-200 text-black font-semibold"
+                      : "text-gray-800"
+                  }`}
+                >
+                  <List size={18} />
+                  Grocery Items
+                </Link>
+              ) : null}
 
               <Link
                 href="/accountsetting"
