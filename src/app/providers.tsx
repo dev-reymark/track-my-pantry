@@ -2,7 +2,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { HeroUIProvider } from "@heroui/react";
+import { HeroUIProvider, ToastProvider } from "@heroui/react";
 import { Toaster } from "react-hot-toast";
 
 // Only if using TypeScript
@@ -20,6 +20,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <HeroUIProvider navigate={router.push}>
       <Toaster />
+      <ToastProvider placement="top-center" />
       {children}
     </HeroUIProvider>
   );

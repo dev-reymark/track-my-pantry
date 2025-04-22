@@ -1,11 +1,7 @@
 import { useKeenSlider } from "keen-slider/react";
 
 import "keen-slider/keen-slider.min.css";
-import {
-  Card,
-  CardHeader,
-  Image,
-} from "@heroui/react";
+import { Card, CardHeader, Image } from "@heroui/react";
 
 export const Slider = () => {
   const [sliderRef, instanceRef] = useKeenSlider({
@@ -45,7 +41,7 @@ export const Slider = () => {
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:items-center lg:gap-16">
               <div className="max-w-xl text-center ltr:sm:text-left rtl:sm:text-right">
                 <h2 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-                  Celebrity-Curated Recipe Packs, Right in Your Kitchen
+                  This Month&apos;s exclusive celebrity recipe packs!
                 </h2>
 
                 <p className="mt-4 text-gray-700">
@@ -126,40 +122,20 @@ export const Slider = () => {
                     </Card>
                   </div>
 
-                  {/* Healthy Filipino Recipes */}
+                  {/* Juday's Healthy Filipino Recipes */}
                   <div className="keen-slider__slide">
                     <Card className="col-span-12 sm:col-span-4">
                       <CardHeader className="absolute z-10 top-1 flex-col !items-start">
                         <p className="text-tiny text-white/60 uppercase font-bold">
-                          Filipino Flavors
+                          Healthy Filipino Recipes
                         </p>
                         <h4 className="text-white font-medium text-large">
-                          Nutritious Filipino Dishes
+                          Juday&apos;s Merienda Picks
                         </h4>
                       </CardHeader>
                       <Image
                         removeWrapper
                         alt="Healthy Filipino dish with vegetables"
-                        className="z-0 w-full h-full object-cover"
-                        src="https://images.pexels.com/photos/461198/pexels-photo-461198.jpeg"
-                      />
-                    </Card>
-                  </div>
-
-                  {/* Filipino Street Food */}
-                  <div className="keen-slider__slide">
-                    <Card className="col-span-12 sm:col-span-4">
-                      <CardHeader className="absolute z-10 top-1 flex-col !items-start">
-                        <p className="text-tiny text-white/60 uppercase font-bold">
-                          Street Eats
-                        </p>
-                        <h4 className="text-white font-medium text-large">
-                          Filipino Street Food
-                        </h4>
-                      </CardHeader>
-                      <Image
-                        removeWrapper
-                        alt="Plate of Filipino street food"
                         className="z-0 w-full h-full object-cover"
                         src="https://images.pexels.com/photos/461198/pexels-photo-461198.jpeg"
                       />

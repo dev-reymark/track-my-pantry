@@ -61,21 +61,12 @@ export default function AddItems() {
         setItems(itemData);
 
         // Fetch user's previously selected items
-        // if (user) {
-        //   const pantryDoc = await getDoc(doc(db, "userPantry", user.uid));
-        //   if (pantryDoc.exists()) {
-        //     setSelectedItems(pantryDoc.data()?.items || []);
-        //   }
-        // }
-        const LOAD_PREVIOUS_SELECTIONS = true; // Toggle this
-
-        if (user && LOAD_PREVIOUS_SELECTIONS) {
+        if (user) {
           const pantryDoc = await getDoc(doc(db, "userPantry", user.uid));
           if (pantryDoc.exists()) {
             setSelectedItems(pantryDoc.data()?.items || []);
           }
         }
-
       } catch (err) {
         console.error("Error loading data:", err);
         toast.error("Failed to load items.");
@@ -103,7 +94,6 @@ export default function AddItems() {
         updatedAt: new Date(),
       });
       toast.success("Pantry updated!");
-      setSelectedItems([]); // <-- Uncheck all checkboxes
     } catch (err) {
       console.error(err);
       toast.error("Failed to save pantry.");

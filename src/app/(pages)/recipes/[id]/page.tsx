@@ -94,7 +94,7 @@ export default function ViewRecipe() {
       <ApplicationLayout>
         <div className="p-6 space-y-4 max-w-2xl">
           <Button as={Link} variant="flat" href="/recipes" color="primary">
-            Back to recipes
+            ← Back to recipes
           </Button>
           <h1 className="text-3xl font-bold">{recipe.name}</h1>
 

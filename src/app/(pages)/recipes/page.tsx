@@ -19,14 +19,25 @@ import {
   Select,
   SelectItem,
   useDisclosure,
+  Tooltip,
+  addToast,
+  cn,
 } from "@heroui/react";
 import { SearchIcon } from "lucide-react";
 import { useEffect, useState } from "react";
-import { collection, getDocs, addDoc, doc, getDoc } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  addDoc,
+  doc,
+  getDoc,
+  deleteDoc,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import Loader from "@/components/loader";
 import toast from "react-hot-toast";
+import { GoTrash } from "react-icons/go";
 
 interface Ingredient {
   id: string | null;
@@ -177,6 +188,59 @@ export default function Recipes() {
     );
   };
 
+  const confirmDeleteToast = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      addToast({
+        title: "Are you sure?",
+        description: "This will permanently delete the recipe.",
+        classNames: {
+          base: cn([
+            "bg-default-50 dark:bg-background shadow-sm",
+            "border border-l-8 rounded-md rounded-l-none",
+            "flex flex-col items-start",
+            "border-danger-200 dark:border-danger-100 border-l-danger",
+          ]),
+          icon: "w-6 h-6 fill-current",
+        },
+        endContent: (
+          <div className="ms-11 my-2 flex gap-x-2">
+            <Button
+              color="danger"
+              size="sm"
+              variant="solid"
+              onPress={() => resolve(true)}
+            >
+              Delete
+            </Button>
+          </div>
+        ),
+        color: "danger",
+      });
+    });
+  };
+
+  const handleDeleteRecipe = async (id: string) => {
+    const confirmed = await confirmDeleteToast();
+    if (!confirmed) return;
+
+    try {
+      await deleteDoc(doc(db, "recipes", id));
+      setRecipes((prev) => prev.filter((r) => r.id !== id));
+      addToast({
+        title: "Deleted",
+        description: "Recipe has been removed.",
+        color: "success",
+      });
+    } catch (error) {
+      console.error("Error deleting recipe:", error);
+      addToast({
+        title: "Error",
+        description: "Failed to delete the recipe.",
+        color: "danger",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <ProtectedRoute>
@@ -261,15 +325,44 @@ export default function Recipes() {
             </div>
           </div>
 
-          {/* Results */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredRecipes.map((recipe) => {
               const missingIngredients = getMissingIngredients(recipe);
               return (
                 <div key={recipe.id}>
-                  <Card isPressable as={Link} href={`/recipes/${recipe.id}`}>
+                  <Card>
                     <CardHeader className="flex justify-between font-semibold text-lg">
-                      {recipe.name}
+                      <Link underline="hover" href={`/recipes/${recipe.id}`}>
+                        {recipe.name}
+                      </Link>
+                      <div className="flex gap-2">
+                        <Button
+                          color="success"
+                          variant="flat"
+                          size="sm"
+                          onPress={() => handleAddToMealPlan(recipe)}
+                        >
+                          Add to Meal Plan
+                        </Button>
+                        {user?.role === "admin" && (
+                          <Tooltip
+                            color="danger"
+                            placement="right"
+                            content="Delete Recipe"
+                            showArrow={true}
+                          >
+                            <Button
+                              color="danger"
+                              variant="light"
+                              size="sm"
+                              isIconOnly
+                              onPress={() => handleDeleteRecipe(recipe.id)}
+                            >
+                              <GoTrash size={16} />
+                            </Button>
+                          </Tooltip>
+                        )}
+                      </div>
                     </CardHeader>
                     <CardBody className="text-sm space-y-2">
                       <div>
@@ -306,15 +399,6 @@ export default function Recipes() {
                       </div>
                     </CardBody>
                   </Card>
-                  <Button
-                    className="z-70 mt-4"
-                    color="success"
-                    variant="flat"
-                    size="sm"
-                    onPress={() => handleAddToMealPlan(recipe)}
-                  >
-                    Add to Meal Plan
-                  </Button>
                 </div>
               );
             })}
@@ -357,9 +441,9 @@ export default function Recipes() {
             </ModalBody>
             <ModalFooter>
               <Button
-                color="danger"
+                color="warning"
                 onPress={onOpenChange}
-                variant="ghost"
+                variant="flat"
                 className="mr-2"
               >
                 Cancel

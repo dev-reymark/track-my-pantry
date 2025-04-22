@@ -162,6 +162,18 @@ export default function MealPlanTable() {
     }
   };
 
+  const getTotalCaloriesPerDay = (): {
+    day: string;
+    totalCalories: number;
+  }[] => {
+    return days.map((day) => {
+      const total = mealPlan
+        .filter((m) => m.day === day)
+        .reduce((sum, m) => sum + m.calories, 0);
+      return { day, totalCalories: total };
+    });
+  };
+
   return (
     <ProtectedRoute>
       <ApplicationLayout>
@@ -229,6 +241,44 @@ export default function MealPlanTable() {
                 ))}
               </tbody>
             </table>
+
+            {/* Total Calories Table */}
+            <div className="mt-8">
+              {/* <h2 className="text-xl font-semibold">Total Calories Per Day</h2> */}
+              <p className="mt-2 text-md text-gray-600 mb-3">
+                This calorie calculator estimates the number of calories needed
+                each day to maintain, lose, or gain weight. Click this link or
+                button{" "}
+                <a
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline text-blue-600 italic"
+                  href="https://www.calculator.net/calorie-calculator.html"
+                >
+                  https://www.calculator.net/calorie-calculator.html
+                </a>
+              </p>
+              <table className="min-w-full border border-gray-300">
+                <thead>
+                  <tr>
+                    <th className="border p-2 text-left bg-gray-100">Day</th>
+                    <th className="border p-2 text-center bg-gray-100">
+                      Total Calories
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getTotalCaloriesPerDay().map(({ day, totalCalories }) => (
+                    <tr key={day}>
+                      <td className="border p-2">{day}</td>
+                      <td className="border p-2 text-center font-medium">
+                        {totalCalories}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 

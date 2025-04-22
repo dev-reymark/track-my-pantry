@@ -50,9 +50,18 @@ export default function Categories() {
                 isRequired
                 placeholder="e.g. Fruits, Snacks, Drinks"
               />
-              <Button type="submit" color="primary" isLoading={loading}>
-                {loading ? "Adding..." : "Add Category"}
-              </Button>
+              <div className="flex gap-2">
+                <Button type="submit" color="primary" isLoading={loading}>
+                  {loading ? "Adding..." : "Add Category"}
+                </Button>
+                <Button
+                  color="warning"
+                  variant="flat"
+                  onPress={() => router.push("/pantry")}
+                >
+                  Cancel
+                </Button>
+              </div>
             </form>
           </div>
         </ApplicationLayout>
