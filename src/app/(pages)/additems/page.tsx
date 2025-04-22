@@ -67,7 +67,7 @@ export default function AddItems() {
         //     setSelectedItems(pantryDoc.data()?.items || []);
         //   }
         // }
-        const LOAD_PREVIOUS_SELECTIONS = true; // Toggle this
+        const LOAD_PREVIOUS_SELECTIONS = false; // Toggle this
 
         if (user && LOAD_PREVIOUS_SELECTIONS) {
           const pantryDoc = await getDoc(doc(db, "userPantry", user.uid));
@@ -98,12 +98,25 @@ export default function AddItems() {
 
     try {
       setIsSubmitting(true);
-      await setDoc(doc(db, "userPantry", user.uid), {
-        items: selectedItems,
+
+      const pantryRef = doc(db, "userPantry", user.uid);
+      const pantrySnap = await getDoc(pantryRef);
+
+      const existingItems: string[] = pantrySnap.exists()
+        ? pantrySnap.data().items || []
+        : [];
+
+      const updatedItems = Array.from(
+        new Set([...existingItems, ...selectedItems])
+      ); // merge and dedupe
+
+      await setDoc(pantryRef, {
+        items: updatedItems,
         updatedAt: new Date(),
       });
+
       toast.success("Pantry updated!");
-      setSelectedItems([]); // <-- Uncheck all checkboxes
+      setSelectedItems([]); // Optional: Clear UI after submit
     } catch (err) {
       console.error(err);
       toast.error("Failed to save pantry.");
