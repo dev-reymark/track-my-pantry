@@ -3,8 +3,11 @@
 import ApplicationLayout from "@/components/layout/ApplicationLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import {
+  addToast,
   Button,
+  cn,
   Input,
+  Link,
   Modal,
   ModalBody,
   ModalContent,
@@ -61,6 +64,7 @@ export default function MealPlanTable() {
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
   const [selectedMealType, setSelectedMealType] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   const auth = getAuth();
   const user = auth.currentUser;
@@ -174,15 +178,93 @@ export default function MealPlanTable() {
     });
   };
 
+  const confirmClearMealPlanToast = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      addToast({
+        title: "Clear entire meal plan?",
+        description: "This will permanently delete all meals for the week.",
+        classNames: {
+          base: cn([
+            "bg-default-50 dark:bg-background shadow-sm",
+            "border border-l-8 rounded-md rounded-l-none",
+            "flex flex-col items-start",
+            "border-danger-200 dark:border-danger-100 border-l-danger",
+          ]),
+          icon: "w-6 h-6 fill-current",
+        },
+        endContent: (
+          <div className="ms-11 my-2 flex gap-x-2">
+            <Button
+              color="danger"
+              size="sm"
+              variant="solid"
+              onPress={() => resolve(true)}
+            >
+              Confirm
+            </Button>
+          </div>
+        ),
+        color: "danger",
+      });
+    });
+  };
+
+  const handleClearMealPlan = async () => {
+    if (!user?.uid) return;
+
+    const confirmed = await confirmClearMealPlanToast();
+    if (!confirmed) return;
+
+    setClearing(true);
+    try {
+      const q = query(
+        collection(db, "mealPlans"),
+        where("userId", "==", user.uid)
+      );
+      const snapshot = await getDocs(q);
+
+      const deleteOps = snapshot.docs.map((docSnap) =>
+        deleteDoc(doc(db, "mealPlans", docSnap.id))
+      );
+      await Promise.all(deleteOps);
+
+      setMealPlan([]);
+      addToast({
+        title: "Meal Plan Cleared",
+        description: "All meals have been deleted.",
+        color: "success",
+      });
+    } catch (err) {
+      console.error("Failed to clear meal plan:", err);
+      addToast({
+        title: "Error",
+        description: "Failed to clear the meal plan.",
+        color: "danger",
+      });
+    } finally {
+      setClearing(false);
+    }
+  };
+
   return (
     <ProtectedRoute>
       <ApplicationLayout>
         <div className="p-4">
-          <div className="flex justify-between items-center mb-4">
+          <div className="mb-4">
             <h1 className="text-2xl font-bold">Weekly Meal Plan</h1>
-            <Button color="primary" onPress={onOpen}>
-              Add Meal
-            </Button>
+            <div className="flex gap-2 mt-4">
+              <Button color="primary" onPress={onOpen}>
+                Add Meal
+              </Button>
+              <Button
+                color="warning"
+                variant="flat"
+                isLoading={clearing}
+                onPress={handleClearMealPlan}
+              >
+                Reset
+              </Button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -245,19 +327,22 @@ export default function MealPlanTable() {
             {/* Total Calories Table */}
             <div className="mt-8">
               {/* <h2 className="text-xl font-semibold">Total Calories Per Day</h2> */}
-              <p className="mt-2 text-md text-gray-600 mb-3">
-                This calorie calculator estimates the number of calories needed
-                each day to maintain, lose, or gain weight. Click this link or
-                button{" "}
-                <a
+              <div className="mb-4">
+                <p className="mt-2 text-md text-gray-600 mb-3">
+                  This calorie calculator estimates the number of calories
+                  needed each day to maintain, lose, or gain weight. Click the
+                  button to calculate.
+                </p>
+                <Button
+                  as={Link}
+                  color="primary"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="underline text-blue-600 italic"
                   href="https://www.calculator.net/calorie-calculator.html"
                 >
-                  https://www.calculator.net/calorie-calculator.html
-                </a>
-              </p>
+                  Count Suggested Calorie Intake
+                </Button>
+              </div>
               <table className="min-w-full border border-gray-300">
                 <thead>
                   <tr>
