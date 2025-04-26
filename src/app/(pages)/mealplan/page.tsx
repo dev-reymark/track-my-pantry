@@ -5,7 +5,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import {
   addToast,
   Button,
-  cn,
+  // cn,
   Input,
   Link,
   Modal,
@@ -64,7 +64,7 @@ export default function MealPlanTable() {
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
   const [selectedMealType, setSelectedMealType] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [clearing, setClearing] = useState(false);
+  const [clearing] = useState(false);
 
   const auth = getAuth();
   const user = auth.currentUser;
@@ -178,44 +178,77 @@ export default function MealPlanTable() {
     });
   };
 
-  const confirmClearMealPlanToast = (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      addToast({
-        title: "Clear entire meal plan?",
-        description: "This will permanently delete all meals for the week.",
-        classNames: {
-          base: cn([
-            "bg-default-50 dark:bg-background shadow-sm",
-            "border border-l-8 rounded-md rounded-l-none",
-            "flex flex-col items-start",
-            "border-danger-200 dark:border-danger-100 border-l-danger",
-          ]),
-          icon: "w-6 h-6 fill-current",
-        },
-        endContent: (
-          <div className="ms-11 my-2 flex gap-x-2">
-            <Button
-              color="danger"
-              size="sm"
-              variant="solid"
-              onPress={() => resolve(true)}
-            >
-              Confirm
-            </Button>
-          </div>
-        ),
-        color: "danger",
-      });
-    });
-  };
+  // const confirmClearMealPlanToast = (): Promise<boolean> => {
+  //   return new Promise((resolve) => {
+  //     addToast({
+  //       title: "Clear entire meal plan?",
+  //       description: "This will permanently delete all meals for the week.",
+  //       classNames: {
+  //         base: cn([
+  //           "bg-default-50 dark:bg-background shadow-sm",
+  //           "border border-l-8 rounded-md rounded-l-none",
+  //           "flex flex-col items-start",
+  //           "border-danger-200 dark:border-danger-100 border-l-danger",
+  //         ]),
+  //         icon: "w-6 h-6 fill-current",
+  //       },
+  //       endContent: (
+  //         <div className="ms-11 my-2 flex gap-x-2">
+  //           <Button
+  //             color="danger"
+  //             size="sm"
+  //             variant="solid"
+  //             onPress={() => resolve(true)}
+  //           >
+  //             Confirm
+  //           </Button>
+  //         </div>
+  //       ),
+  //       color: "danger",
+  //     });
+  //   });
+  // };
+
+  // const handleClearMealPlan = async () => {
+  //   if (!user?.uid) return;
+
+  //   const confirmed = await confirmClearMealPlanToast();
+  //   if (!confirmed) return;
+
+  //   setClearing(true);
+  //   try {
+  //     const q = query(
+  //       collection(db, "mealPlans"),
+  //       where("userId", "==", user.uid)
+  //     );
+  //     const snapshot = await getDocs(q);
+
+  //     const deleteOps = snapshot.docs.map((docSnap) =>
+  //       deleteDoc(doc(db, "mealPlans", docSnap.id))
+  //     );
+  //     await Promise.all(deleteOps);
+
+  //     setMealPlan([]);
+  //     addToast({
+  //       title: "Meal Plan Cleared",
+  //       description: "All meals have been deleted.",
+  //       color: "success",
+  //     });
+  //   } catch (err) {
+  //     console.error("Failed to clear meal plan:", err);
+  //     addToast({
+  //       title: "Error",
+  //       description: "Failed to clear the meal plan.",
+  //       color: "danger",
+  //     });
+  //   } finally {
+  //     setClearing(false);
+  //   }
+  // };
 
   const handleClearMealPlan = async () => {
     if (!user?.uid) return;
 
-    const confirmed = await confirmClearMealPlanToast();
-    if (!confirmed) return;
-
-    setClearing(true);
     try {
       const q = query(
         collection(db, "mealPlans"),
@@ -233,16 +266,16 @@ export default function MealPlanTable() {
         title: "Meal Plan Cleared",
         description: "All meals have been deleted.",
         color: "success",
+        timeout: 3000,
+        shouldShowTimeoutProgress: true,
       });
-    } catch (err) {
-      console.error("Failed to clear meal plan:", err);
+    } catch (error) {
+      console.error("Error clearing meal plan:", error);
       addToast({
         title: "Error",
         description: "Failed to clear the meal plan.",
         color: "danger",
       });
-    } finally {
-      setClearing(false);
     }
   };
 

@@ -21,7 +21,7 @@ import {
   useDisclosure,
   Tooltip,
   addToast,
-  cn,
+  // cn,
 } from "@heroui/react";
 import { SearchIcon } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -188,41 +188,42 @@ export default function Recipes() {
     );
   };
 
-  const confirmDeleteToast = (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      addToast({
-        title: "Are you sure?",
-        description: "This will permanently delete the recipe.",
-        classNames: {
-          base: cn([
-            "bg-default-50 dark:bg-background shadow-sm",
-            "border border-l-8 rounded-md rounded-l-none",
-            "flex flex-col items-start",
-            "border-danger-200 dark:border-danger-100 border-l-danger",
-          ]),
-          icon: "w-6 h-6 fill-current",
-        },
-        endContent: (
-          <div className="ms-11 my-2 flex gap-x-2">
-            <Button
-              color="danger"
-              size="sm"
-              variant="solid"
-              onPress={() => resolve(true)}
-            >
-              Delete
-            </Button>
-          </div>
-        ),
-        color: "danger",
-      });
-    });
-  };
+  // const handleDeleteRecipe = async (id: string) => {
+  //   // Display a confirmation toast with a custom button
+  //   const deleteToastId = toast(
+  //     (t) => (
+  //       <span>
+  //         Are you sure you want to delete this recipe?
+  //         <button
+  //           onClick={async () => {
+  //             toast.dismiss(t.id); // dismiss the toast
+  //             try {
+  //               await deleteDoc(doc(db, "recipes", id));
+  //               setRecipes((prev) => prev.filter((r) => r.id !== id));
+  //               toast.success("Recipe deleted successfully!");
+  //             } catch (error) {
+  //               console.error("Error deleting recipe:", error);
+  //               toast.error("Failed to delete the recipe.");
+  //             }
+  //           }}
+  //         >
+  //           Yes, Delete
+  //         </button>
+  //         <button
+  //           onClick={() => toast.dismiss(t.id)} // dismiss the toast without doing anything
+  //         >
+  //           Cancel
+  //         </button>
+  //       </span>
+  //     ),
+  //     {
+  //       duration: Infinity, // Keep the toast open until user confirms or cancels
+  //     }
+  //   );
+  // };
 
   const handleDeleteRecipe = async (id: string) => {
-    const confirmed = await confirmDeleteToast();
-    if (!confirmed) return;
-
+    if (user?.role !== "admin") return;
     try {
       await deleteDoc(doc(db, "recipes", id));
       setRecipes((prev) => prev.filter((r) => r.id !== id));
@@ -230,6 +231,8 @@ export default function Recipes() {
         title: "Deleted",
         description: "Recipe has been removed.",
         color: "success",
+        timeout: 3000,
+        shouldShowTimeoutProgress: true,
       });
     } catch (error) {
       console.error("Error deleting recipe:", error);
@@ -240,6 +243,63 @@ export default function Recipes() {
       });
     }
   };
+
+  // const confirmDeleteToast = (): Promise<boolean> => {
+  //   return new Promise((resolve) => {
+  //     addToast({
+  //       title: "Are you sure?",
+  //       description: "This will permanently delete the recipe.",
+  //       classNames: {
+  //         base: cn([
+  //           "bg-default-50 dark:bg-background shadow-sm",
+  //           "border border-l-8 rounded-md rounded-l-none",
+  //           "flex flex-col items-start",
+  //           "border-danger-200 dark:border-danger-100 border-l-danger",
+  //         ]),
+  //         icon: "w-6 h-6 fill-current",
+  //       },
+  //       endContent: (
+  //         <div className="ms-11 my-2 flex gap-x-2">
+  //           <Button
+  //             color="danger"
+  //             size="sm"
+  //             variant="solid"
+  //             onPress={() => {resolve(true);
+  //               handleDeleteRecipe(selectedRecipe?.id || "");
+  //               toast.dismiss(); // Close the toast
+                
+  //             }}
+  //           >
+  //             Delete
+  //           </Button>
+  //         </div>
+  //       ),
+  //       color: "danger",
+  //     });
+  //   });
+  // };
+
+  // const handleDeleteRecipe = async (id: string) => {
+  //   const confirmed = await confirmDeleteToast();
+  //   if (!confirmed) return;
+
+  //   try {
+  //     await deleteDoc(doc(db, "recipes", id));
+  //     setRecipes((prev) => prev.filter((r) => r.id !== id));
+  //     addToast({
+  //       title: "Deleted",
+  //       description: "Recipe has been removed.",
+  //       color: "success",
+  //     });
+  //   } catch (error) {
+  //     console.error("Error deleting recipe:", error);
+  //     addToast({
+  //       title: "Error",
+  //       description: "Failed to delete the recipe.",
+  //       color: "danger",
+  //     });
+  //   }
+  // };
 
   if (loading) {
     return (
