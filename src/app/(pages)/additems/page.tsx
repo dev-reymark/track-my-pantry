@@ -27,13 +27,16 @@ type PantryItem = {
   id: string;
   name: string;
   categoryId: string;
+  expiryDate?: string; // added expiryDate
 };
 
 export default function AddItems() {
   const { user } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [items, setItems] = useState<PantryItem[]>([]);
-  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [selectedItems, setSelectedItems] = useState<
+    { id: string; expiryDate?: string }[]
+  >([]); // track expiryDate as well
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -61,12 +64,6 @@ export default function AddItems() {
         setItems(itemData);
 
         // Fetch user's previously selected items
-        // if (user) {
-        //   const pantryDoc = await getDoc(doc(db, "userPantry", user.uid));
-        //   if (pantryDoc.exists()) {
-        //     setSelectedItems(pantryDoc.data()?.items || []);
-        //   }
-        // }
         const LOAD_PREVIOUS_SELECTIONS = false; // Toggle this
 
         if (user && LOAD_PREVIOUS_SELECTIONS) {
@@ -75,7 +72,6 @@ export default function AddItems() {
             setSelectedItems(pantryDoc.data()?.items || []);
           }
         }
-
       } catch (err) {
         console.error("Error loading data:", err);
         toast.error("Failed to load items.");
@@ -102,13 +98,20 @@ export default function AddItems() {
       const pantryRef = doc(db, "userPantry", user.uid);
       const pantrySnap = await getDoc(pantryRef);
 
-      const existingItems: string[] = pantrySnap.exists()
+      const existingItems: PantryItem[] = pantrySnap.exists()
         ? pantrySnap.data().items || []
         : [];
 
+      // Merge and deduplicate, adding expiryDate to each item
       const updatedItems = Array.from(
-        new Set([...existingItems, ...selectedItems])
-      ); // merge and dedupe
+        new Set([
+          ...existingItems,
+          ...selectedItems.map((item) => ({
+            ...item,
+            expiryDate: item.expiryDate || null, // Default expiry date as null
+          })),
+        ])
+      );
 
       await setDoc(pantryRef, {
         items: updatedItems,
@@ -116,7 +119,7 @@ export default function AddItems() {
       });
 
       toast.success("Pantry updated!");
-      setSelectedItems([]); // Optional: Clear UI after submit
+      setSelectedItems([]); // reset selections
     } catch (err) {
       console.error(err);
       toast.error("Failed to save pantry.");
@@ -148,9 +151,14 @@ export default function AddItems() {
                     </h2>
                     {categoryItems.length > 0 ? (
                       <CheckboxGroup
-                        value={selectedItems}
+                        value={selectedItems.map((item) => item.id)}
                         onValueChange={(keys) =>
-                          setSelectedItems(keys as string[])
+                          setSelectedItems(
+                            keys.map((key) => ({
+                              id: key,
+                              expiryDate: undefined, // or set a default expiry date
+                            }))
+                          )
                         }
                         orientation="horizontal"
                       >

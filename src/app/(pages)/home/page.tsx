@@ -4,6 +4,8 @@ import ApplicationLayout from "@/components/layout/ApplicationLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Button, Card, CardBody, CardFooter, Image, Link } from "@heroui/react";
 import { Slider } from "./component/slider";
+import useExpirationNotifier from "@/hooks/useExpirationNotifier";
+import ExpirationAlert from "@/components/ExpirationAlert";
 
 const cards = [
   {
@@ -34,10 +36,17 @@ const cards = [
 ];
 
 export default function Home() {
+  // Use the custom hook to notify about expiring items
+ const { expiringItems, expiredItems } = useExpirationNotifier();
+
   return (
     <ProtectedRoute>
       <ApplicationLayout title="Home | Track My Pantry">
         <div>
+          <ExpirationAlert
+            expiringItems={expiringItems}
+            expiredItems={expiredItems}
+          />
           <div className="relative overflow-hidden">
             <div className="w-full mx-auto px-2 py-10">
               <div className="w-full mx-auto text-center mb-6">
