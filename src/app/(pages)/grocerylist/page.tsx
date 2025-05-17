@@ -48,9 +48,15 @@ export default function GroceryList() {
 
     const unsubscribePantry = onSnapshot(pantryRef, async (pantrySnap) => {
       const pantryData = pantrySnap.data();
-      const pantryItemIds: string[] =
-        pantryData?.items?.map((item: string) => item.trim().toLowerCase()) ||
-        [];
+      // const pantryItemIds: string[] =
+      //   pantryData?.items?.map((item: string) => item.trim().toLowerCase()) ||
+      //   [];
+
+        const pantryItemIds: string[] =
+          pantryData?.items?.map((item: { id: string }) =>
+            (item.id || "").trim().toLowerCase()
+          ) || [];
+
 
       console.log("Pantry Item IDs:", pantryItemIds); // Log pantry item IDs
 

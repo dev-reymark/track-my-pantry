@@ -91,7 +91,12 @@ export default function Recipes() {
         const pantryRef = doc(db, "userPantry", user.uid);
         const pantrySnap = await getDoc(pantryRef);
         if (pantrySnap.exists()) {
-          setPantryItems(pantrySnap.data()?.items || []);
+          const pantryData = pantrySnap.data()?.items || [];
+          // Extract only ids for easy comparison
+          const pantryItemIds = pantryData.map(
+            (item: { id: string }) => item.id?.toLowerCase() || ""
+          );
+          setPantryItems(pantryItemIds);
         }
       } catch (error) {
         console.error("Error fetching pantry items:", error);
@@ -182,11 +187,17 @@ export default function Recipes() {
     }
   };
 
+  // const getMissingIngredients = (recipe: Recipe) => {
+  //   return recipe.ingredients.filter(
+  //     (ingredient) => !pantryItems.includes(ingredient.id || "")
+  //   );
+  // };
   const getMissingIngredients = (recipe: Recipe) => {
     return recipe.ingredients.filter(
-      (ingredient) => !pantryItems.includes(ingredient.id || "")
+      (ingredient) => !pantryItems.includes((ingredient.id || "").toLowerCase())
     );
   };
+  
 
   // const handleDeleteRecipe = async (id: string) => {
   //   // Display a confirmation toast with a custom button
